@@ -7,28 +7,32 @@
 #ifndef _DEVICE_H
 #define _DEVICE_H
 
+#include "ctaphid.h"
+#include "ctap.h"
 #include "storage.h"
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 void device_init();
 
-uint32_t millis();
+//uint32_t millis();
 
-void delay(uint32_t ms);
+//void delay(uint32_t ms);
 
-// HID message size in bytes
-#define HID_MESSAGE_SIZE        64
+//void usbhid_init();
 
-void usbhid_init();
+//int usbhid_recv(uint8_t * msg);
 
-int usbhid_recv(uint8_t * msg);
+//void usbhid_send(uint8_t * msg);
 
-void usbhid_send(uint8_t * msg);
-
-void usbhid_close();
+//void usbhid_close();
 
 void main_loop_delay();
 
-void heartbeat();
+//void heartbeat();
 
 
 void authenticator_read_state(AuthenticatorState * );
@@ -36,7 +40,7 @@ void authenticator_read_state(AuthenticatorState * );
 void authenticator_read_backup_state(AuthenticatorState * );
 
 // Return 1 yes backup is init'd, else 0
-//void authenticator_initialize()
+void authenticator_initialize();
 int authenticator_is_backup_initialized();
 
 void authenticator_write_state(AuthenticatorState *, int backup);
@@ -80,28 +84,30 @@ void ctap_load_rk(int index,CTAP_residentKey * rk);
 void ctap_overwrite_rk(int index,CTAP_residentKey * rk);
 
 // For Solo hacker
-void boot_solo_bootloader();
-void boot_st_bootloader();
+//void boot_solo_bootloader();
+//void boot_st_bootloader();
 
 // HID wink command
 void device_wink();
 
-typedef enum {
-    DEVICE_LOW_POWER_IDLE = 0,
-    DEVICE_LOW_POWER_FAST = 1,
-    DEVICE_FAST = 2,
-} DEVICE_CLOCK_RATE;
+//typedef enum {
+//    DEVICE_LOW_POWER_IDLE = 0,
+//    DEVICE_LOW_POWER_FAST = 1,
+//    DEVICE_FAST = 2,
+//} DEVICE_CLOCK_RATE;
 
 // Set the clock rate for the device.
 // Three modes are targetted for Solo.
 // 0: Lowest clock rate for NFC.
 // 1: fastest clock rate supported at a low power setting for NFC FIDO.
 // 2: fastest clock rate.  Generally for USB interface.
-void device_set_clock_rate(DEVICE_CLOCK_RATE param);
+//void device_set_clock_rate(DEVICE_CLOCK_RATE param);
 
 // Returns 1 if operating in NFC mode.
 // 0 otherwise.
 bool device_is_nfc();
 
-
+#ifdef __cplusplus
+}
+#endif
 #endif

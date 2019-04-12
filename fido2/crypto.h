@@ -11,6 +11,16 @@
 
 #define USE_SOFTWARE_IMPLEMENTATION
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+//typedef struct SHA256_HashContext{
+//    const uECC_HashContext uECC;
+//    SHA256_CTX ctx;
+//} SHA256_HashContext;
+
 void crypto_sha256_init();
 void crypto_sha256_update(uint8_t * data, size_t len);
 void crypto_sha256_update_secret();
@@ -41,12 +51,13 @@ void crypto_ecc256_shared_secret(const uint8_t * pubkey, const uint8_t * privkey
 #define CRYPTO_TRANSPORT_KEY            ((uint8_t*)1)
 #define CRYPTO_MASTER_KEY               ((uint8_t*)0)
 
-void crypto_aes256_init(uint8_t * key, uint8_t * nonce);
-void crypto_aes256_reset_iv(uint8_t * nonce);
+//void crypto_aes256_init(uint8_t * key, uint8_t * nonce);
+//void crypto_aes256_reset_iv(uint8_t * nonce);
 
-// buf length must be multiple of 16 bytes
-void crypto_aes256_decrypt(uint8_t * buf, int lenth);
-void crypto_aes256_encrypt(uint8_t * buf, int lenth);
+void crypto_aes256_decrypt(uint8_t * state, uint8_t * iv1, const uint8_t * key, int len);
+void crypto_aes256_encrypt(uint8_t * state, uint8_t * iv1, const uint8_t * key, int len);
+#define crypto_aes256_decrypt aes_gcm_decrypt2
+#define crypto_aes256_encrypt aes_gcm_encrypt2
 
 void crypto_reset_master_secret();
 void crypto_load_master_secret(uint8_t * key);
@@ -57,5 +68,9 @@ extern const uint16_t attestation_cert_der_size;
 
 extern const uint8_t attestation_key[];
 extern const uint16_t attestation_key_size;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

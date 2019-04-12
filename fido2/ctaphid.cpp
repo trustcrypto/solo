@@ -8,21 +8,22 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "WProgram.h"
 #include "device.h"
 #include "ctaphid.h"
 #include "ctap.h"
 #include "u2f.h"
-#include "time.h"
+#include "Time.h"
 #include "util.h"
 #include "log.h"
-#include "extensions.h"
+#include "extensions/extensions.h"
 
 // move custom SHA512 command out,
 // and the following headers too
-#include "sha2.h"
+//#include "sha2.h"
 #include "crypto.h"
 
-#include APP_CONFIG
+//#include APP_CONFIG
 
 typedef enum
 {

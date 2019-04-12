@@ -7,14 +7,14 @@
 #ifndef _LOG_H
 #define _LOG_H
 
-#include APP_CONFIG
+//#include APP_CONFIG
 #include <stdint.h>
 
 #ifndef DEBUG_LEVEL
-#define DEBUG_LEVEL 0
+//#define DEBUG_LEVEL 0
 #endif
 
-#define ENABLE_FILE_LOGGING
+//#define ENABLE_FILE_LOGGING
 
 void LOG(uint32_t tag, const char * filename, int num, const char * fmt, ...);
 void LOG_HEX(uint32_t tag, uint8_t * data, int length);

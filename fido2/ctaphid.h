@@ -8,7 +8,13 @@
 #define _CTAPHID_H_H
 
 #include "device.h"
+#include <stdint.h>
 #include "ctap_errors.h"
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 #define TYPE_INIT               0x80
 #define TYPE_CONT               0x00
@@ -42,6 +48,9 @@
 #define CTAPHID_STATUS_IDLE         0
 #define CTAPHID_STATUS_PROCESSING   1
 #define CTAPHID_STATUS_UPNEEDED     2
+
+// HID message size in bytes
+#define HID_MESSAGE_SIZE        64
 
 #define CTAPHID_INIT_PAYLOAD_SIZE  (HID_MESSAGE_SIZE-7)
 #define CTAPHID_CONT_PAYLOAD_SIZE  (HID_MESSAGE_SIZE-5)
@@ -99,4 +108,7 @@ void ctaphid_update_status(int8_t status);
 
 #define ctaphid_packet_len(pkt)     ((uint16_t)((pkt)->pkt.init.bcnth << 8) | ((pkt)->pkt.init.bcntl))
 
+#ifdef __cplusplus
+}
+#endif
 #endif

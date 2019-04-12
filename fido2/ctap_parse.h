@@ -7,16 +7,15 @@
 #ifndef _CTAP_PARSE_H
 #define _CTAP_PARSE_H
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
-#define check_ret(r)    _check_ret(r,__LINE__, __FILE__);\
-                        if ((r) != CborNoError) return CTAP2_ERR_CBOR_PARSING;
+#define check_ret _check_ret
+#define check_retr _check_ret
 
-#define check_retr(r)    _check_ret(r,__LINE__, __FILE__);\
-                        if ((r) != CborNoError) return r;
-
-
-extern void _check_ret(CborError ret, int line, const char * filename);
-
+extern void _check_ret(CborError ret);
 
 const char * cbor_value_get_type_string(const CborValue *value);
 
@@ -38,5 +37,7 @@ uint8_t ctap_parse_get_assertion(CTAP_getAssertion * GA, uint8_t * request, int 
 uint8_t ctap_parse_client_pin(CTAP_clientPin * CP, uint8_t * request, int length);
 uint8_t parse_credential_descriptor(CborValue * arr, CTAP_credentialDescriptor * cred);
 
-
+#ifdef __cplusplus
+}
+#endif
 #endif

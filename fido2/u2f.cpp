@@ -11,11 +11,11 @@
 #include "log.h"
 #include "device.h"
 #include "apdu.h"
-#include "wallet.h"
+#include "extensions/wallet.h"
 #ifdef ENABLE_U2F_EXTENSIONS
-#include "extensions.h"
+#include "extensions/extensions.h"
 #endif
-#include APP_CONFIG
+//#include APP_CONFIG
 
 // void u2f_response_writeback(uint8_t * buf, uint8_t len);
 #ifdef ENABLE_U2F

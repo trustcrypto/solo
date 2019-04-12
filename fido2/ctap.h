@@ -7,7 +7,13 @@
 #ifndef _CTAP_H
 #define _CTAP_H
 
+#include <stdbool.h>
 #include "cbor.h"
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 #define CTAP_MAKE_CREDENTIAL        0x01
 #define CTAP_GET_ASSERTION          0x02
@@ -332,5 +338,7 @@ uint16_t ctap_key_len(uint8_t index);
 extern uint8_t PIN_TOKEN[PIN_TOKEN_SIZE];
 extern uint8_t KEY_AGREEMENT_PUB[64];
 
-
+#ifdef __cplusplus
+}
+#endif
 #endif

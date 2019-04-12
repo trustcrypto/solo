@@ -10,6 +10,11 @@
 #include <stdint.h>
 #include "ctap.h"
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 #define U2F_EC_FMT_UNCOMPRESSED             0x04
 
 #define U2F_EC_POINT_SIZE                   32
@@ -110,5 +115,7 @@ void u2f_set_writeback_buffer(CTAP_RESPONSE * resp);
 
 int16_t u2f_version();
 
-
+#ifdef __cplusplus
+}
+#endif
 #endif /* U2F_H_ */

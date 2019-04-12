@@ -9,6 +9,11 @@
 
 #include "ctap.h"
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 #define KEY_SPACE_BYTES     128
 #define MAX_KEYS            (1)
 
@@ -24,7 +29,7 @@ typedef struct
     // Pin information
     uint8_t is_initialized;
     uint8_t is_pin_set;
-    uint8_t pin_code[NEW_PIN_ENC_MIN_SIZE];
+    uint8_t pin_code[64];
     int pin_code_length;
     int8_t remaining_tries;
 
@@ -44,4 +49,7 @@ typedef struct
 
 extern AuthenticatorState STATE;
 
+#ifdef __cplusplus
+}
+#endif
 #endif

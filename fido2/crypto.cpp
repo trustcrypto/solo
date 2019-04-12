@@ -12,8 +12,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-
-
 #include "util.h"
 #include "crypto.h"
 
@@ -21,13 +19,16 @@
 
 #include "sha256.h"
 #include "uECC.h"
-#include "aes.h"
+//#include "aes.h"
+//#include "device.h"
+//#include "log.h"
+//#include APP_CONFIG
 #include "ctap.h"
-#include "device.h"
-#include "log.h"
-#include APP_CONFIG
+#include "okcore.h"
+#define ctap_generate_rng RNG2
 
-#ifdef USING_PC
+
+//#ifdef USING_PC
 typedef enum
 {
     MBEDTLS_ECP_DP_NONE = 0,
@@ -44,13 +45,13 @@ typedef enum
     MBEDTLS_ECP_DP_SECP224K1,      /*!< 224-bits "Koblitz" curve */
     MBEDTLS_ECP_DP_SECP256K1,      /*!< 256-bits "Koblitz" curve */
 } mbedtls_ecp_group_id;
-#endif
+//#endif
 
 
-const uint8_t attestation_cert_der[];
-const uint16_t attestation_cert_der_size;
-const uint8_t attestation_key[];
-const uint16_t attestation_key_size;
+//const uint8_t attestation_cert_der[];
+//const uint16_t attestation_cert_der_size;
+//const uint8_t attestation_key[];
+//const uint16_t attestation_key_size;
 
 
 
@@ -80,7 +81,7 @@ void crypto_reset_master_secret()
 void crypto_load_master_secret(uint8_t * key)
 {
     #if KEY_SPACE_BYTES < 96
-    #error "need more key bytes"
+    //#error "need more key bytes"
     #endif
     memmove(master_secret, key, 64);
     memmove(transport_secret, key+64, 32);
@@ -120,7 +121,7 @@ void crypto_sha256_hmac_init(uint8_t * key, uint32_t klen, uint8_t * hmac)
     
     if(klen > 64)
     {
-        printf2(TAG_ERR,"Error, key size must be <= 64\n");
+        //printf2(TAG_ERR,"Error, key size must be <= 64\n");
         exit(1);
     }
 
@@ -150,7 +151,7 @@ void crypto_sha256_hmac_final(uint8_t * key, uint32_t klen, uint8_t * hmac)
 
     if(klen > 64)
     {
-        printf2(TAG_ERR,"Error, key size must be <= 64\n");
+        //printf2(TAG_ERR,"Error, key size must be <= 64\n");
         exit(1);
     }
     memmove(buf, key, klen);
@@ -182,9 +183,13 @@ void crypto_ecc256_load_attestation_key()
 
 void crypto_ecc256_sign(uint8_t * data, int len, uint8_t * sig)
 {
-    if ( uECC_sign(_signing_key, data, len, sig, _es256_curve) == 0)
+	//TODO use deterministic signing 
+	//uint8_t tmp[32 + 32 + 64];
+	//SHA256_HashContext ectx = {{&init_SHA256, &update_SHA256, &finish_SHA256, 64, 32, tmp}};
+    //if ( uECC_sign_deterministic(_signing_key, data, len, &ectx.uECC, sig, _es256_curve)== 0)
+	if ( uECC_sign(_signing_key, data, len, sig, _es256_curve) == 0)
     {
-        printf2(TAG_ERR,"error, uECC failed\n");
+        //printf2(TAG_ERR,"error, uECC failed\n");
         exit(1);
     }
 }
@@ -221,19 +226,19 @@ void crypto_ecdsa_sign(uint8_t * data, int len, uint8_t * sig, int MBEDTLS_ECP_I
             if (_key_len != 32)  goto fail;
             break;
         default:
-            printf2(TAG_ERR,"error, invalid ECDSA alg specifier\n");
+            //printf2(TAG_ERR,"error, invalid ECDSA alg specifier\n");
             exit(1);
     }
 
     if ( uECC_sign(_signing_key, data, len, sig, curve) == 0)
     {
-        printf2(TAG_ERR,"error, uECC failed\n");
+        //printf2(TAG_ERR,"error, uECC failed\n");
         exit(1);
     }
     return;
 
 fail:
-    printf2(TAG_ERR,"error, invalid key length\n");
+    //printf2(TAG_ERR,"error, invalid key length\n");
     exit(1);
 
 }
@@ -273,7 +278,7 @@ void crypto_ecc256_make_key_pair(uint8_t * pubkey, uint8_t * privkey)
 {
     if (uECC_make_key(pubkey, privkey, _es256_curve) != 1)
     {
-        printf2(TAG_ERR,"Error, uECC_make_key failed\n");
+        //printf2(TAG_ERR,"Error, uECC_make_key failed\n");
         exit(1);
     }
 }
@@ -282,12 +287,13 @@ void crypto_ecc256_shared_secret(const uint8_t * pubkey, const uint8_t * privkey
 {
     if (uECC_shared_secret(pubkey, privkey, shared_secret, _es256_curve) != 1)
     {
-        printf2(TAG_ERR,"Error, uECC_shared_secret failed\n");
+        //printf2(TAG_ERR,"Error, uECC_shared_secret failed\n");
         exit(1);
     }
 
 }
 
+/*
 struct AES_ctx aes_ctx;
 void crypto_aes256_init(uint8_t * key, uint8_t * nonce)
 {
@@ -324,14 +330,14 @@ void crypto_aes256_reset_iv(uint8_t * nonce)
 
 void crypto_aes256_decrypt(uint8_t * buf, int length)
 {
-    AES_CBC_decrypt_buffer(&aes_ctx, buf, length);
+    
 }
 
 void crypto_aes256_encrypt(uint8_t * buf, int length)
 {
     AES_CBC_encrypt_buffer(&aes_ctx, buf, length);
 }
-
+*/
 
 const uint8_t attestation_cert_der[] =
 "\x30\x82\x01\xfb\x30\x82\x01\xa1\xa0\x03\x02\x01\x02\x02\x01\x00\x30\x0a\x06\x08"
