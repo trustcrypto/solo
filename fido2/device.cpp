@@ -13,6 +13,7 @@
 #include "crypto.h"
 #include "oku2f.h"
 
+extern uint8_t large_buffer[1024];
 
 //#define LOW_FREQUENCY        1
 //#define HIGH_FREQUENCY       0
@@ -66,17 +67,16 @@ uint32_t millis()
 */
 void device_set_status(uint32_t status)
 {
-	/*
-    __disable_irq();
+
     __last_update = millis();
-    __enable_irq();
+
 
     if (status != CTAPHID_STATUS_IDLE && __device_status != status)
     {
         ctaphid_update_status(status);
     }
     __device_status = status;
-	*/
+
 }
 
 extern int u2f_button;
@@ -196,6 +196,8 @@ void usbhid_send(uint8_t * msg)
 void ctaphid_write_block(uint8_t * data)
 {
     //usbhid_send(data);
+	Serial.println("Sending FIDO response block");
+	byteprint(data, 64);
 	RawHID.send(data, 100);
 }
 
@@ -284,12 +286,16 @@ void authenticator_read_state(AuthenticatorState * a)
 {
     //uint32_t * ptr = (uint32_t *)flash_addr(STATE1_PAGE);
     //memmove(a,ptr,sizeof(AuthenticatorState));
+	Serial.println("authenticator_read_state");
+	memcpy((uint8_t*)a, large_buffer, sizeof(AuthenticatorState));
+	byteprint(large_buffer,sizeof(AuthenticatorState));
 }
 
 void authenticator_read_backup_state(AuthenticatorState * a)
 {
     //uint32_t * ptr = (uint32_t *)flash_addr(STATE2_PAGE);
     //memmove(a,ptr,sizeof(AuthenticatorState));
+	Serial.println("authenticator_read_backup_state");
 }
 
 // Return 1 yes backup is init'd, else 0
@@ -302,6 +308,7 @@ int authenticator_is_backup_initialized()
     AuthenticatorState * state = (AuthenticatorState*)header;
     return state->is_initialized == INITIALIZED_MARKER;
 	*/
+	Serial.println("authenticator_is_backup_initialized");
 	return 0;
 }
 
@@ -321,6 +328,11 @@ void authenticator_write_state(AuthenticatorState * a, int backup)
         flash_write(flash_addr(STATE2_PAGE), (uint8_t*)a, sizeof(AuthenticatorState));
     }
 	*/
+	Serial.println("authenticator_write_state");
+	if (sizeof(AuthenticatorState) < sizeof(large_buffer)) {
+	memcpy(large_buffer, (uint8_t*)a, sizeof(AuthenticatorState));
+	}
+	byteprint(large_buffer,sizeof(AuthenticatorState));
 }
 
 uint32_t ctap_atomic_count(int sel)
@@ -343,6 +355,7 @@ uint32_t ctap_atomic_count(int sel)
 
 void device_manage()
 {
+	Serial.println("device_manage");
 #if NON_BLOCK_PRINTING
     int i = 10;
     uint8_t c;
@@ -448,18 +461,25 @@ return 1;
 fail:
 return 0;
 */
-return 1;
+Serial.println("ctap_user_presence_test");
+if(IS_BUTTON_PRESSED()) {
+	u2f_button=0;
+	return 1;
+}
+else return 0;
 }
 
 int ctap_generate_rng(uint8_t * dst, size_t num)
 {
     RNG2(dst, num);
+	Serial.println("ctap_generate_rng");
     return 1;
 }
 
 
 int ctap_user_verification(uint8_t arg)
 {
+	Serial.println("ctap_user_verification");
     return 1;
 }
 
@@ -473,11 +493,13 @@ void ctap_reset_rk()
         flash_erase_page(RK_START_PAGE + i);
     }
 	*/
+	Serial.println("ctap_reset_rk");
 }
 
 uint32_t ctap_rk_size()
 {
     //return RK_NUM_PAGES * (PAGE_SIZE / sizeof(CTAP_residentKey));
+	Serial.println("ctap_rk_size");
 	return 0;
 }
 
@@ -499,6 +521,8 @@ void ctap_store_rk(int index,CTAP_residentKey * rk)
         printf2(TAG_ERR,"Out of bounds reading index %d for rk\n", index);
     }
 	*/
+	Serial.println("ctap_store_rk");
+	ctap_rk_flash(index, (uint8_t*)rk, sizeof(CTAP_residentKey), 1);
 }
 
 void ctap_load_rk(int index,CTAP_residentKey * rk)
@@ -519,6 +543,8 @@ void ctap_load_rk(int index,CTAP_residentKey * rk)
         printf2(TAG_ERR,"Out of bounds reading index %d for rk\n", index);
     }
 	*/
+	Serial.println("ctap_load_rk");
+	ctap_rk_flash(index, (uint8_t*)rk, sizeof(CTAP_residentKey), 0);
 }
 
 void ctap_overwrite_rk(int index,CTAP_residentKey * rk)
@@ -542,6 +568,8 @@ void ctap_overwrite_rk(int index,CTAP_residentKey * rk)
         printf2(TAG_ERR,"Out of bounds reading index %d for rk\n", index);
     }
 	*/
+	Serial.println("ctap_overwrite_rk");
+	ctap_rk_flash(index, (uint8_t*)rk, sizeof(CTAP_residentKey), 2);
 }
 /*
 void boot_st_bootloader()

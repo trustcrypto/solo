@@ -16,11 +16,6 @@ extern "C"
 {
 #endif
 
-//typedef struct SHA256_HashContext{
-//    const uECC_HashContext uECC;
-//    SHA256_CTX ctx;
-//} SHA256_HashContext;
-
 void crypto_sha256_init();
 void crypto_sha256_update(uint8_t * data, size_t len);
 void crypto_sha256_update_secret();

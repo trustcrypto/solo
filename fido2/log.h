@@ -9,9 +9,16 @@
 
 //#include APP_CONFIG
 #include <stdint.h>
+#include "Arduino.h"
+#include "okcore.h"
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 #ifndef DEBUG_LEVEL
-//#define DEBUG_LEVEL 0
+#define DEBUG_LEVEL 0
 #endif
 
 //#define ENABLE_FILE_LOGGING
@@ -63,12 +70,24 @@ uint32_t timestamp();
 #else
 
 #define set_logging_mask(mask)
-#define printf1(tag,fmt, ...)
-#define printf2(tag,fmt, ...)
-#define printf3(tag,fmt, ...)
-#define dump_hex1(tag,data,len)
+#define printf1(tag,fmt, ...) do {\
+			Serial.println(tag);\
+            Serial.println(fmt);\
+           } while(0) 
+#define printf2(tag,fmt, ...) do {\
+			Serial.println(tag);\
+			Serial.println(fmt);\
+           } while(0) 
+#define printf3(tag,fmt, ...) do {\
+			Serial.println(tag);\
+			Serial.println(fmt);\
+           } while(0) 
+#define dump_hex1(tag,data,len) byteprint(data,len)
 #define timestamp()
 
+#endif
+#ifdef __cplusplus
+}
 #endif
 
 #endif

@@ -14,18 +14,18 @@
 
 #include "util.h"
 #include "crypto.h"
+#include "WProgram.h"
 
 #ifdef USE_SOFTWARE_IMPLEMENTATION
 
 #include "sha256.h"
 #include "uECC.h"
 //#include "aes.h"
-//#include "device.h"
-//#include "log.h"
+#include "device.h"
+#include "log.h"
 //#include APP_CONFIG
 #include "ctap.h"
-#include "okcore.h"
-#define ctap_generate_rng RNG2
+#include "oku2f.h"
 
 
 //#ifdef USING_PC
@@ -121,7 +121,7 @@ void crypto_sha256_hmac_init(uint8_t * key, uint32_t klen, uint8_t * hmac)
     
     if(klen > 64)
     {
-        //printf2(TAG_ERR,"Error, key size must be <= 64\n");
+        printf2(TAG_ERR,"Error, key size must be <= 64\n");
         exit(1);
     }
 
@@ -151,7 +151,7 @@ void crypto_sha256_hmac_final(uint8_t * key, uint32_t klen, uint8_t * hmac)
 
     if(klen > 64)
     {
-        //printf2(TAG_ERR,"Error, key size must be <= 64\n");
+        printf2(TAG_ERR,"Error, key size must be <= 64\n");
         exit(1);
     }
     memmove(buf, key, klen);
@@ -183,15 +183,17 @@ void crypto_ecc256_load_attestation_key()
 
 void crypto_ecc256_sign(uint8_t * data, int len, uint8_t * sig)
 {
-	//TODO use deterministic signing 
-	//uint8_t tmp[32 + 32 + 64];
-	//SHA256_HashContext ectx = {{&init_SHA256, &update_SHA256, &finish_SHA256, 64, 32, tmp}};
-    //if ( uECC_sign_deterministic(_signing_key, data, len, &ectx.uECC, sig, _es256_curve)== 0)
-	if ( uECC_sign(_signing_key, data, len, sig, _es256_curve) == 0)
+	Serial.println(" crypto_ecc256_sign start");
+	//use deterministic signing 
+	uint8_t tmp[32 + 32 + 64];
+	SHA256_HashContext ectx = {{&init_SHA256, &update_SHA256, &finish_SHA256, 64, 32, tmp}};
+    if ( uECC_sign_deterministic(_signing_key, data, len, &ectx.uECC, sig, _es256_curve)== 0)
+	//if ( uECC_sign(_signing_key, data, len, sig, _es256_curve) == 0)
     {
-        //printf2(TAG_ERR,"error, uECC failed\n");
+        printf2(TAG_ERR,"error, uECC failed\n");
         exit(1);
     }
+	Serial.println(" crypto_ecc256_sign finish");
 }
 
 void crypto_ecc256_load_key(uint8_t * data, int len, uint8_t * data2, int len2)
@@ -206,6 +208,9 @@ void crypto_ecdsa_sign(uint8_t * data, int len, uint8_t * sig, int MBEDTLS_ECP_I
 {
 
     const struct uECC_Curve_t * curve = NULL;
+	//use deterministic signing 
+	uint8_t tmp[32 + 32 + 64];
+	SHA256_HashContext ectx = {{&init_SHA256, &update_SHA256, &finish_SHA256, 64, 32, tmp}}; 
 
     switch(MBEDTLS_ECP_ID)
     {
@@ -226,19 +231,19 @@ void crypto_ecdsa_sign(uint8_t * data, int len, uint8_t * sig, int MBEDTLS_ECP_I
             if (_key_len != 32)  goto fail;
             break;
         default:
-            //printf2(TAG_ERR,"error, invalid ECDSA alg specifier\n");
+            printf2(TAG_ERR,"error, invalid ECDSA alg specifier\n");
             exit(1);
     }
-
-    if ( uECC_sign(_signing_key, data, len, sig, curve) == 0)
+	if ( uECC_sign_deterministic(_signing_key, data, len, &ectx.uECC, sig, curve)== 0)
+    //if ( uECC_sign(_signing_key, data, len, sig, curve) == 0)
     {
-        //printf2(TAG_ERR,"error, uECC failed\n");
+        printf2(TAG_ERR,"error, uECC failed\n");
         exit(1);
     }
     return;
 
 fail:
-    //printf2(TAG_ERR,"error, invalid key length\n");
+    printf2(TAG_ERR,"error, invalid key length\n");
     exit(1);
 
 }
@@ -258,11 +263,24 @@ void crypto_ecc256_derive_public_key(uint8_t * data, int len, uint8_t * x, uint8
 {
     uint8_t privkey[32];
     uint8_t pubkey[64];
-
+	
     generate_private_key(data,len,NULL,0,privkey);
-
+	Serial.println("crypto_ecc256_derive_public_key start");
     memset(pubkey,0,sizeof(pubkey));
+	//const struct uECC_Curve_t * curve = uECC_secp256r1();
     uECC_compute_public_key(privkey, pubkey, _es256_curve);
+	  //memset(pubkey, 0, sizeof(pubkey));
+      //memset(privkey, 0, sizeof(privkey));
+      //uECC_make_key(pubkey, privkey, _es256_curve); 
+
+      Serial.println(F("Public K"));
+	  byteprint(pubkey, sizeof(pubkey));
+      Serial.println();
+      Serial.println(F("Private K"));
+	  byteprint(privkey, sizeof(privkey));
+      Serial.println();
+
+	Serial.println("crypto_ecc256_derive_public_key finish");
     memmove(x,pubkey,32);
     memmove(y,pubkey+32,32);
 }
@@ -278,7 +296,7 @@ void crypto_ecc256_make_key_pair(uint8_t * pubkey, uint8_t * privkey)
 {
     if (uECC_make_key(pubkey, privkey, _es256_curve) != 1)
     {
-        //printf2(TAG_ERR,"Error, uECC_make_key failed\n");
+        printf2(TAG_ERR,"Error, uECC_make_key failed\n");
         exit(1);
     }
 }
@@ -287,7 +305,7 @@ void crypto_ecc256_shared_secret(const uint8_t * pubkey, const uint8_t * privkey
 {
     if (uECC_shared_secret(pubkey, privkey, shared_secret, _es256_curve) != 1)
     {
-        //printf2(TAG_ERR,"Error, uECC_shared_secret failed\n");
+        printf2(TAG_ERR,"Error, uECC_shared_secret failed\n");
         exit(1);
     }
 
@@ -339,7 +357,7 @@ void crypto_aes256_encrypt(uint8_t * buf, int length)
 }
 */
 
-const uint8_t attestation_cert_der[] =
+uint8_t attestation_cert_der[768] =
 "\x30\x82\x01\xfb\x30\x82\x01\xa1\xa0\x03\x02\x01\x02\x02\x01\x00\x30\x0a\x06\x08"
 "\x2a\x86\x48\xce\x3d\x04\x03\x02\x30\x2c\x31\x0b\x30\x09\x06\x03\x55\x04\x06\x13"
 "\x02\x55\x53\x31\x0b\x30\x09\x06\x03\x55\x04\x08\x0c\x02\x4d\x44\x31\x10\x30\x0e"
@@ -368,11 +386,11 @@ const uint8_t attestation_cert_der[] =
 "\x35\xeb\xdd\x9b\x6d\x8f\x7d\xf3\xc4\x3a\xd7";
 
 
-const uint16_t attestation_cert_der_size = sizeof(attestation_cert_der)-1;
+uint16_t attestation_cert_der_size = sizeof(attestation_cert_der)-1;
 
 
-const uint8_t attestation_key[] = "\xcd\x67\xaa\x31\x0d\x09\x1e\xd1\x6e\x7e\x98\x92\xaa\x07\x0e\x19\x94\xfc\xd7\x14\xae\x7c\x40\x8f\xb9\x46\xb7\x2e\x5f\xe7\x5d\x30";
-const uint16_t attestation_key_size = sizeof(attestation_key)-1;
+uint8_t attestation_key[32] = "\xcd\x67\xaa\x31\x0d\x09\x1e\xd1\x6e\x7e\x98\x92\xaa\x07\x0e\x19\x94\xfc\xd7\x14\xae\x7c\x40\x8f\xb9\x46\xb7\x2e\x5f\xe7\x5d\x30";
+uint16_t attestation_key_size = sizeof(attestation_key)-1;
 
 
 #else

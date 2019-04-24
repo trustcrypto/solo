@@ -17,7 +17,7 @@
 #include "cose_key.h"
 #include "crypto.h"
 #include "util.h"
-//#include "log.h"
+#include "log.h"
 #include "device.h"
 #include "storage.h"
 //#include APP_CONFIG
@@ -60,7 +60,7 @@ uint8_t verify_pin_auth(uint8_t * pinAuth, uint8_t * clientDataHash)
     }
     else
     {
-        //printf2(TAG_ERR,"Pin auth failed\n");
+        printf2(TAG_ERR,"Pin auth failed\n");
         //dump_hex1(TAG_ERR,pinAuth,16);
         //dump_hex1(TAG_ERR,hmac,16);
         return CTAP2_ERR_PIN_AUTH_INVALID;
@@ -254,7 +254,7 @@ static int ctap_generate_cose_key(CborEncoder * cose_key, uint8_t * hmac_input, 
 
     if (credtype != PUB_KEY_CRED_PUB_KEY)
     {
-        //printf2(TAG_ERR,"Error, pubkey credential type not supported\n");
+        printf2(TAG_ERR,"Error, pubkey credential type not supported\n");
         return -1;
     }
     switch(algtype)
@@ -263,7 +263,7 @@ static int ctap_generate_cose_key(CborEncoder * cose_key, uint8_t * hmac_input, 
             crypto_ecc256_derive_public_key(hmac_input, len, x, y);
             break;
         default:
-            //printf2(TAG_ERR,"Error, COSE alg %d not supported\n", algtype);
+            printf2(TAG_ERR,"Error, COSE alg %d not supported\n", algtype);
             return -1;
     }
     int ret = ctap_add_cose_key(cose_key, x, y, credtype, algtype);
@@ -334,7 +334,7 @@ static int ctap_make_extensions(CTAP_extensions * ext, uint8_t * ext_encoder_buf
 
     if (ext->hmac_secret_present == EXT_HMAC_SECRET_PARSED)
     {
-        //printf1(TAG_CTAP, "Processing hmac-secret..\r\n");
+        printf1(TAG_CTAP, "Processing hmac-secret..\r\n");
 
         crypto_ecc256_shared_secret((uint8_t*) &ext->hmac_secret.keyAgreement.pubkey,
                                     KEY_AGREEMENT_PRIV,
@@ -349,11 +349,11 @@ static int ctap_make_extensions(CTAP_extensions * ext, uint8_t * ext_encoder_buf
 
         if (memcmp(ext->hmac_secret.saltAuth, hmac, 16) == 0)
         {
-            //printf1(TAG_CTAP, "saltAuth is valid\r\n");
+            printf1(TAG_CTAP, "saltAuth is valid\r\n");
         }
         else
         {
-            //printf1(TAG_CTAP, "saltAuth is invalid\r\n");
+            printf1(TAG_CTAP, "saltAuth is invalid\r\n");
             return CTAP2_ERR_EXTENSION_FIRST;
         }
 
@@ -387,7 +387,7 @@ static int ctap_make_extensions(CTAP_extensions * ext, uint8_t * ext_encoder_buf
 		crypto_aes256_encrypt(output, NULL, shared_secret, ext->hmac_secret.saltLen);
 		
         // output
-        //printf1(TAG_GREEN, "have %d bytes for Extenstions encoder\r\n",*ext_encoder_buf_size);
+        printf1(TAG_GREEN, "have %d bytes for Extenstions encoder\r\n",*ext_encoder_buf_size);
         cbor_encoder_init(&extensions, ext_encoder_buf, *ext_encoder_buf_size, 0);
         {
             CborEncoder hmac_secret_map;
@@ -445,7 +445,7 @@ static int ctap_make_auth_data(struct rpId * rp, CborEncoder * map, uint8_t * au
 
     if((sizeof(CTAP_authDataHeader)) > *len)
     {
-        //printf1(TAG_ERR,"assertion fail, auth_data_buf must be at least %d bytes\n", sizeof(CTAP_authData) - sizeof(CTAP_attestHeader));
+        printf1(TAG_ERR,"assertion fail, auth_data_buf must be at least %d bytes\n", sizeof(CTAP_authData) - sizeof(CTAP_attestHeader));
         exit(1);
     }
 
@@ -453,8 +453,8 @@ static int ctap_make_auth_data(struct rpId * rp, CborEncoder * map, uint8_t * au
     crypto_sha256_update(rp->id, rp->size);
     crypto_sha256_final(authData->head.rpIdHash);
 
-    //printf1(TAG_RED, "rpId: "); //dump_hex1(TAG_RED, rp->id, rp->size);
-    //printf1(TAG_RED, "hash: "); //dump_hex1(TAG_RED, authData->head.rpIdHash, 32);
+    printf1(TAG_RED, "rpId: "); //dump_hex1(TAG_RED, rp->id, rp->size);
+    printf1(TAG_RED, "hash: "); //dump_hex1(TAG_RED, authData->head.rpIdHash, 32);
 
     count = auth_data_update_count(&authData->head);
 
@@ -521,7 +521,7 @@ static int ctap_make_auth_data(struct rpId * rp, CborEncoder * map, uint8_t * au
             }
             if (index >= ctap_rk_size())
             {
-                //printf2(TAG_ERR, "Out of memory for resident keys\r\n");
+                printf2(TAG_ERR, "Out of memory for resident keys\r\n");
                 return CTAP2_ERR_KEY_STORE_FULL;
             }
             ctap_increment_rk_store();
@@ -530,7 +530,7 @@ static int ctap_make_auth_data(struct rpId * rp, CborEncoder * map, uint8_t * au
         }
 done_rk:
 
-        //printf1(TAG_GREEN, "MADE credId: "); //dump_hex1(TAG_GREEN, (uint8_t*) &authData->attest.id, sizeof(CredentialId));
+        printf1(TAG_GREEN, "MADE credId: "); //dump_hex1(TAG_GREEN, (uint8_t*) &authData->attest.id, sizeof(CredentialId));
 
         ctap_generate_cose_key(&cose_key, (uint8_t*)&authData->attest.id, sizeof(CredentialId), credInfo->publicKeyCredentialType, credInfo->COSEAlgorithmIdentifier);
 
@@ -678,18 +678,18 @@ uint8_t ctap_make_credential(CborEncoder * encoder, uint8_t * request, int lengt
 
     if (ret != 0)
     {
-        //printf2(TAG_ERR,"error, parse_make_credential failed\n");
+        printf2(TAG_ERR,"error, parse_make_credential failed\n");
         return ret;
     }
     if ((MC.paramsParsed & MC_requiredMask) != MC_requiredMask)
     {
-        //printf2(TAG_ERR,"error, required parameter(s) for makeCredential are missing\n");
+        printf2(TAG_ERR,"error, required parameter(s) for makeCredential are missing\n");
         return CTAP2_ERR_MISSING_PARAMETER;
     }
 
     if (ctap_is_pin_set() == 1 && MC.pinAuthPresent == 0)
     {
-        //printf2(TAG_ERR,"pinAuth is required\n");
+        printf2(TAG_ERR,"pinAuth is required\n");
         return CTAP2_ERR_PIN_REQUIRED;
     }
     else
@@ -716,13 +716,13 @@ uint8_t ctap_make_credential(CborEncoder * encoder, uint8_t * request, int lengt
         }
         //check_retr(ret);
 
-        //printf1(TAG_GREEN, "checking credId: "); //dump_hex1(TAG_GREEN, (uint8_t*) &excl_cred->credential.id, sizeof(CredentialId));
+        printf1(TAG_GREEN, "checking credId: "); //dump_hex1(TAG_GREEN, (uint8_t*) &excl_cred->credential.id, sizeof(CredentialId));
         // DELETE
         // crypto_aes256_reset_iv(NULL);
         // crypto_aes256_decrypt((uint8_t*)& excl_cred->credential.enc, CREDENTIAL_ENC_SIZE);
         if (ctap_authenticate_credential(&MC.rp, excl_cred))
         {
-            //printf1(TAG_MC, "Cred %d failed!\r\n",i);
+            printf1(TAG_MC, "Cred %d failed!\r\n",i);
             return CTAP2_ERR_CREDENTIAL_EXCLUDED;
         }
 
@@ -762,7 +762,7 @@ uint8_t ctap_make_credential(CborEncoder * encoder, uint8_t * request, int lengt
 
     crypto_ecc256_load_attestation_key();
     int sigder_sz = ctap_calculate_signature(auth_data_buf, auth_data_sz, MC.clientDataHash, auth_data_buf, sigbuf, sigder);
-    //printf1(TAG_MC,"der sig [%d]: ", sigder_sz); //dump_hex1(TAG_MC, sigder, sigder_sz);
+    printf1(TAG_MC,"der sig [%d]: ", sigder_sz); //dump_hex1(TAG_MC, sigder, sigder_sz);
 
     ret = ctap_add_attest_statement(&map, sigder, sigder_sz);
     //check_retr(ret);
@@ -836,7 +836,7 @@ uint8_t ctap_add_user_entity(CborEncoder * map, CTAP_userEntity * user)
         ret = cbor_encoder_create_map(map, &entity, 1);
     //check_ret(ret);
 
-    //printf1(TAG_GREEN,"id_size: %d\r\n", user->id_size);
+    printf1(TAG_GREEN,"id_size: %d\r\n", user->id_size);
     {
         ret = cbor_encode_text_string(&entity, "id", 2);
         //check_ret(ret);
@@ -891,13 +891,13 @@ static void add_existing_user_info(CTAP_credentialDescriptor * cred)
         ctap_load_rk(i, &rk);
         if (is_matching_rk(&rk, (CTAP_residentKey *)&cred->credential))
         {
-            //printf1(TAG_GREEN, "found rk match for allowList item (%d)\r\n", i);
+            printf1(TAG_GREEN, "found rk match for allowList item (%d)\r\n", i);
             memmove(&cred->credential.user, &rk.user, sizeof(CTAP_userEntity));
             return;
         }
 
     }
-    //printf1(TAG_GREEN, "NO rk match for allowList item \r\n");
+    printf1(TAG_GREEN, "NO rk match for allowList item \r\n");
 }
 
 // @return the number of valid credentials
@@ -913,11 +913,11 @@ int ctap_filter_invalid_credentials(CTAP_getAssertion * GA)
     {
         if (! ctap_authenticate_credential(&GA->rp, &GA->creds[i]))
         {
-            //printf1(TAG_GA, "CRED #%d is invalid\n", GA->creds[i].credential.id.count);
+            printf1(TAG_GA, "CRED #%d is invalid\n", GA->creds[i].credential.id.count);
 #ifdef ENABLE_U2F_EXTENSIONS
             if (is_extension_request((uint8_t*)&GA->creds[i].credential.id, sizeof(CredentialId)))
             {
-                //printf1(TAG_EXT, "CRED #%d is extension\n", GA->creds[i].credential.id.count);
+                printf1(TAG_EXT, "CRED #%d is extension\n", GA->creds[i].credential.id.count);
                 count++;
             }
             else
@@ -942,17 +942,17 @@ int ctap_filter_invalid_credentials(CTAP_getAssertion * GA)
         crypto_sha256_update(GA->rp.id,GA->rp.size);
         crypto_sha256_final(rpIdHash);
 
-        //printf1(TAG_GREEN, "true rpIdHash: ");  //dump_hex1(TAG_GREEN, rpIdHash, 32);
+        printf1(TAG_GREEN, "true rpIdHash: ");  //dump_hex1(TAG_GREEN, rpIdHash, 32);
         for(i = 0; i < STATE.rk_stored; i++)
         {
             ctap_load_rk(i, &rk);
-            //printf1(TAG_GREEN, "rpIdHash%d: ", i);  //dump_hex1(TAG_GREEN, rk.id.rpIdHash, 32);
+            printf1(TAG_GREEN, "rpIdHash%d: ", i);  //dump_hex1(TAG_GREEN, rk.id.rpIdHash, 32);
             if (memcmp(rk.id.rpIdHash, rpIdHash, 32) == 0)
             {
-                //printf1(TAG_GA, "RK %d is a rpId match!\r\n", i);
+                printf1(TAG_GA, "RK %d is a rpId match!\r\n", i);
                 if (count == ALLOW_LIST_MAX_SIZE-1)
                 {
-                    //printf2(TAG_ERR, "not enough ram allocated for matching RK's (%d).  Skipping.\r\n", count);
+                    printf2(TAG_ERR, "not enough ram allocated for matching RK's (%d).  Skipping.\r\n", count);
                     break;
                 }
                 GA->creds[count].type = PUB_KEY_CRED_PUB_KEY;
@@ -963,7 +963,7 @@ int ctap_filter_invalid_credentials(CTAP_getAssertion * GA)
         GA->credLen = count;
     }
 
-    //printf1(TAG_GA, "qsort length: %d\n", GA->credLen);
+    printf1(TAG_GA, "qsort length: %d\n", GA->credLen);
     qsort(GA->creds, GA->credLen, sizeof(CTAP_credentialDescriptor), cred_cmp_func);
     return count;
 }
@@ -975,7 +975,7 @@ static void save_credential_list(CTAP_authDataHeader * head, uint8_t * clientDat
     {
         if (count > ALLOW_LIST_MAX_SIZE-1)
         {
-            //printf2(TAG_ERR, "ALLOW_LIST_MAX_SIZE Exceeded\n");
+            printf2(TAG_ERR, "ALLOW_LIST_MAX_SIZE Exceeded\n");
             exit(1);
         }
         memmove(getAssertionState.clientDataHash, clientDataHash, CLIENT_DATA_HASH_SIZE);
@@ -984,7 +984,7 @@ static void save_credential_list(CTAP_authDataHeader * head, uint8_t * clientDat
 
     }
     getAssertionState.count = count;
-    //printf1(TAG_GA,"saved %d credentials\n",count);
+    printf1(TAG_GA,"saved %d credentials\n",count);
 }
 
 static CTAP_credentialDescriptor * pop_credential()
@@ -1010,7 +1010,7 @@ uint8_t ctap_end_get_assertion(CborEncoder * map, CTAP_credentialDescriptor * cr
 
     if (add_user)
     {
-        //printf1(TAG_GREEN, "adding user details to output\r\n");
+        printf1(TAG_GREEN, "adding user details to output\r\n");
         ret = ctap_add_user_entity(map, &cred->credential.user);
         //check_retr(ret);
     }
@@ -1059,18 +1059,18 @@ uint8_t ctap_get_next_assertion(CborEncoder * encoder)
 
     if (add_user_info)
     {
-        //printf1(TAG_GREEN, "adding user info to assertion response\r\n");
+        printf1(TAG_GREEN, "adding user info to assertion response\r\n");
         ret = cbor_encoder_create_map(encoder, &map, 4);
     }
     else
     {
-        //printf1(TAG_GREEN, "NOT adding user info to assertion response\r\n");
+        printf1(TAG_GREEN, "NOT adding user info to assertion response\r\n");
         ret = cbor_encoder_create_map(encoder, &map, 3);
     }
 
 
     //check_ret(ret);
-    //printf1(TAG_RED, "RPID hash: "); //dump_hex1(TAG_RED, authData.rpIdHash, 32);
+    printf1(TAG_RED, "RPID hash: "); //dump_hex1(TAG_RED, authData.rpIdHash, 32);
 
     {
         ret = cbor_encode_int(&map,RESP_authData);
@@ -1083,7 +1083,7 @@ uint8_t ctap_get_next_assertion(CborEncoder * encoder)
     // if only one account for this RP, null out the user details
     if (!getAssertionState.user_verified)
     {
-        //printf1(TAG_GREEN, "Not verified, nulling out user details on response\r\n");
+        printf1(TAG_GREEN, "Not verified, nulling out user details on response\r\n");
         memset(cred->credential.user.name, 0, USER_NAME_LIMIT);
     }
 
@@ -1105,7 +1105,7 @@ uint8_t ctap_get_assertion(CborEncoder * encoder, uint8_t * request, int length)
 
     if (ret != 0)
     {
-        //printf2(TAG_ERR,"error, parse_get_assertion failed\n");
+        printf2(TAG_ERR,"error, parse_get_assertion failed\n");
         return ret;
     }
 
@@ -1128,7 +1128,7 @@ uint8_t ctap_get_assertion(CborEncoder * encoder, uint8_t * request, int length)
 
     int map_size = 3;
 
-    //printf1(TAG_GA, "ALLOW_LIST has %d creds\n", GA.credLen);
+    printf1(TAG_GA, "ALLOW_LIST has %d creds\n", GA.credLen);
     int validCredCount = ctap_filter_invalid_credentials(&GA);
 
     int add_user_info = GA.creds[validCredCount - 1].credential.user.id_size;
@@ -1144,7 +1144,7 @@ uint8_t ctap_get_assertion(CborEncoder * encoder, uint8_t * request, int length)
 
     if (GA.extensions.hmac_secret_present == EXT_HMAC_SECRET_PARSED)
     {
-        //printf1(TAG_GA, "hmac-secret is present\r\n");
+        printf1(TAG_GA, "hmac-secret is present\r\n");
     }
 
     ret = cbor_encoder_create_map(encoder, &map, map_size);
@@ -1152,22 +1152,22 @@ uint8_t ctap_get_assertion(CborEncoder * encoder, uint8_t * request, int length)
 
     if (validCredCount == 0)
     {
-        //printf2(TAG_ERR,"Error, no authentic credential\n");
+        printf2(TAG_ERR,"Error, no authentic credential\n");
         return CTAP2_ERR_NO_CREDENTIALS;
     }
 
     // if only one account for this RP, null out the user details
     if (validCredCount < 2 || !getAssertionState.user_verified)
     {
-        //printf1(TAG_GREEN, "Only one account, nulling out user details on response\r\n");
+        printf1(TAG_GREEN, "Only one account, nulling out user details on response\r\n");
         memset(&GA.creds[0].credential.user.name, 0, USER_NAME_LIMIT);
     }
 
-    //printf1(TAG_GA,"resulting order of creds:\n");
+    printf1(TAG_GA,"resulting order of creds:\n");
     int j;
     for (j = 0; j < GA.credLen; j++)
     {
-        //printf1(TAG_GA,"CRED ID (# %d)\n", GA.creds[j].credential.id.count);
+        printf1(TAG_GA,"CRED ID (# %d)\n", GA.creds[j].credential.id.count);
     }
 
     if (validCredCount > 1)
@@ -1284,7 +1284,7 @@ uint8_t ctap_update_pin_if_verified(uint8_t * pinEnc, int len, uint8_t * platfor
 
     if (memcmp(hmac, pinAuth, 16) != 0)
     {
-        //printf2(TAG_ERR,"pinAuth failed for update pin\n");
+        printf2(TAG_ERR,"pinAuth failed for update pin\n");
         //dump_hex1(TAG_ERR, hmac,16);
         //dump_hex1(TAG_ERR, pinAuth,16);
         return CTAP2_ERR_PIN_AUTH_INVALID;
@@ -1308,12 +1308,12 @@ uint8_t ctap_update_pin_if_verified(uint8_t * pinEnc, int len, uint8_t * platfor
 
     if (ret < NEW_PIN_MIN_SIZE || ret >= NEW_PIN_MAX_SIZE)
     {
-        //printf2(TAG_ERR,"new PIN is too short or too long [%d bytes]\n", ret);
+        printf2(TAG_ERR,"new PIN is too short or too long [%d bytes]\n", ret);
         return CTAP2_ERR_PIN_POLICY_VIOLATION;
     }
     else
     {
-        //printf1(TAG_CP,"new pin: %s [%d bytes]\n", pinEnc, ret);
+        printf1(TAG_CP,"new pin: %s [%d bytes]\n", pinEnc, ret);
         //dump_hex1(TAG_CP, pinEnc, ret);
     }
 
@@ -1375,12 +1375,12 @@ uint8_t ctap_add_pin_if_verified(uint8_t * pinTokenEnc, uint8_t * platform_pubke
 
     if (memcmp(pinHashEnc, PIN_CODE_HASH, 16) != 0)
     {
-        //printf2(TAG_ERR,"Pin does not match!\n");
-        //printf2(TAG_ERR,"platform-pin-hash: "); //dump_hex1(TAG_ERR, pinHashEnc, 16);
-        //printf2(TAG_ERR,"authentic-pin-hash: "); //dump_hex1(TAG_ERR, PIN_CODE_HASH, 16);
-        //printf2(TAG_ERR,"shared-secret: "); //dump_hex1(TAG_ERR, shared_secret, 32);
-        //printf2(TAG_ERR,"platform-pubkey: "); //dump_hex1(TAG_ERR, platform_pubkey, 64);
-        //printf2(TAG_ERR,"device-pubkey: "); //dump_hex1(TAG_ERR, KEY_AGREEMENT_PUB, 64);
+        printf2(TAG_ERR,"Pin does not match!\n");
+        printf2(TAG_ERR,"platform-pin-hash: "); //dump_hex1(TAG_ERR, pinHashEnc, 16);
+        printf2(TAG_ERR,"authentic-pin-hash: "); //dump_hex1(TAG_ERR, PIN_CODE_HASH, 16);
+        printf2(TAG_ERR,"shared-secret: "); //dump_hex1(TAG_ERR, shared_secret, 32);
+        printf2(TAG_ERR,"platform-pubkey: "); //dump_hex1(TAG_ERR, platform_pubkey, 64);
+        printf2(TAG_ERR,"device-pubkey: "); //dump_hex1(TAG_ERR, KEY_AGREEMENT_PUB, 64);
         // Generate new keyAgreement pair
         ctap_reset_key_agreement();
         ctap_decrement_pin_attempts();
@@ -1428,7 +1428,7 @@ uint8_t ctap_client_pin(CborEncoder * encoder, uint8_t * request, int length)
 
     if (ret != 0)
     {
-        //printf2(TAG_ERR,"error, parse_client_pin failed\n");
+        printf2(TAG_ERR,"error, parse_client_pin failed\n");
         return ret;
     }
 
@@ -1442,7 +1442,7 @@ uint8_t ctap_client_pin(CborEncoder * encoder, uint8_t * request, int length)
     switch(CP.subCommand)
     {
         case CP_cmdGetRetries:
-            //printf1(TAG_CP,"CP_cmdGetRetries\n");
+            printf1(TAG_CP,"CP_cmdGetRetries\n");
             ret = cbor_encoder_create_map(encoder, &map, 1);
             //check_ret(ret);
 
@@ -1450,7 +1450,7 @@ uint8_t ctap_client_pin(CborEncoder * encoder, uint8_t * request, int length)
 
             break;
         case CP_cmdGetKeyAgreement:
-            //printf1(TAG_CP,"CP_cmdGetKeyAgreement\n");
+            printf1(TAG_CP,"CP_cmdGetKeyAgreement\n");
             num_map++;
             ret = cbor_encoder_create_map(encoder, &map, num_map);
             //check_ret(ret);
@@ -1462,7 +1462,7 @@ uint8_t ctap_client_pin(CborEncoder * encoder, uint8_t * request, int length)
 
             break;
         case CP_cmdSetPin:
-            //printf1(TAG_CP,"CP_cmdSetPin\n");
+            printf1(TAG_CP,"CP_cmdSetPin\n");
 
             if (ctap_is_pin_set())
             {
@@ -1477,7 +1477,7 @@ uint8_t ctap_client_pin(CborEncoder * encoder, uint8_t * request, int length)
             //check_retr(ret);
             break;
         case CP_cmdChangePin:
-            //printf1(TAG_CP,"CP_cmdChangePin\n");
+            printf1(TAG_CP,"CP_cmdChangePin\n");
 
             if (! ctap_is_pin_set())
             {
@@ -1501,10 +1501,10 @@ uint8_t ctap_client_pin(CborEncoder * encoder, uint8_t * request, int length)
             ret = cbor_encoder_create_map(encoder, &map, num_map);
             //check_ret(ret);
 
-            //printf1(TAG_CP,"CP_cmdGetPinToken\n");
+            printf1(TAG_CP,"CP_cmdGetPinToken\n");
             if (CP.keyAgreementPresent == 0 || CP.pinHashEncPresent == 0)
             {
-                //printf2(TAG_ERR,"Error, missing keyAgreement or pinHashEnc for cmdGetPin\n");
+                printf2(TAG_ERR,"Error, missing keyAgreement or pinHashEnc for cmdGetPin\n");
                 return CTAP2_ERR_MISSING_PARAMETER;
             }
             ret = cbor_encode_int(&map, RESP_pinToken);
@@ -1522,7 +1522,7 @@ uint8_t ctap_client_pin(CborEncoder * encoder, uint8_t * request, int length)
             break;
 
         default:
-            //printf2(TAG_ERR,"Error, invalid client pin subcommand\n");
+            printf2(TAG_ERR,"Error, invalid client pin subcommand\n");
             return CTAP1_ERR_OTHER;
     }
 
@@ -1562,8 +1562,8 @@ uint8_t ctap_request(uint8_t * pkt_raw, int length, CTAP_RESPONSE * resp)
 
     cbor_encoder_init(&encoder, buf, resp->data_size, 0);
 
-    //printf1(TAG_CTAP,"cbor input structure: %d bytes\n", length);
-    //printf1(TAG_DUMP,"cbor req: "); //dump_hex1(TAG_DUMP, pkt_raw, length);
+    printf1(TAG_CTAP,"cbor input structure: %d bytes\n", length);
+    printf1(TAG_DUMP,"cbor req: "); //dump_hex1(TAG_DUMP, pkt_raw, length);
 
     switch(cmd)
     {
@@ -1586,10 +1586,10 @@ uint8_t ctap_request(uint8_t * pkt_raw, int length, CTAP_RESPONSE * resp)
     {
         case CTAP_MAKE_CREDENTIAL:
             device_set_status(CTAPHID_STATUS_PROCESSING);
-            //printf1(TAG_CTAP,"CTAP_MAKE_CREDENTIAL\n");
+            printf1(TAG_CTAP,"CTAP_MAKE_CREDENTIAL\n");
             //timestamp();
             status = ctap_make_credential(&encoder, pkt_raw, length);
-            //printf1(TAG_TIME,"make_credential time: %d ms\n", timestamp());
+            printf1(TAG_TIME,"make_credential time: %d ms\n", timestamp());
 
             resp->length = cbor_encoder_get_buffer_size(&encoder, buf);
             //dump_hex1(TAG_DUMP, buf, resp->length);
@@ -1597,21 +1597,21 @@ uint8_t ctap_request(uint8_t * pkt_raw, int length, CTAP_RESPONSE * resp)
             break;
         case CTAP_GET_ASSERTION:
             device_set_status(CTAPHID_STATUS_PROCESSING);
-            //printf1(TAG_CTAP,"CTAP_GET_ASSERTION\n");
+            printf1(TAG_CTAP,"CTAP_GET_ASSERTION\n");
             //timestamp();
             status = ctap_get_assertion(&encoder, pkt_raw, length);
-            //printf1(TAG_TIME,"get_assertion time: %d ms\n", timestamp());
+            printf1(TAG_TIME,"get_assertion time: %d ms\n", timestamp());
 
             resp->length = cbor_encoder_get_buffer_size(&encoder, buf);
 
-            //printf1(TAG_DUMP,"cbor [%d]: \n",  resp->length);
+            printf1(TAG_DUMP,"cbor [%d]: \n",  resp->length);
                 //dump_hex1(TAG_DUMP,buf, resp->length);
             break;
         case CTAP_CANCEL:
-            //printf1(TAG_CTAP,"CTAP_CANCEL\n");
+            printf1(TAG_CTAP,"CTAP_CANCEL\n");
             break;
         case CTAP_GET_INFO:
-            //printf1(TAG_CTAP,"CTAP_GET_INFO\n");
+            printf1(TAG_CTAP,"CTAP_GET_INFO\n");
             status = ctap_get_info(&encoder);
 
             resp->length = cbor_encoder_get_buffer_size(&encoder, buf);
@@ -1620,14 +1620,14 @@ uint8_t ctap_request(uint8_t * pkt_raw, int length, CTAP_RESPONSE * resp)
 
             break;
         case CTAP_CLIENT_PIN:
-            //printf1(TAG_CTAP,"CTAP_CLIENT_PIN\n");
+            printf1(TAG_CTAP,"CTAP_CLIENT_PIN\n");
             status = ctap_client_pin(&encoder, pkt_raw, length);
 
             resp->length = cbor_encoder_get_buffer_size(&encoder, buf);
             //dump_hex1(TAG_DUMP, buf, resp->length);
             break;
         case CTAP_RESET:
-            //printf1(TAG_CTAP,"CTAP_RESET\n");
+            printf1(TAG_CTAP,"CTAP_RESET\n");
             if (ctap_user_presence_test())
             {
                 ctap_reset();
@@ -1638,7 +1638,7 @@ uint8_t ctap_request(uint8_t * pkt_raw, int length, CTAP_RESPONSE * resp)
             }
             break;
         case GET_NEXT_ASSERTION:
-            //printf1(TAG_CTAP,"CTAP_NEXT_ASSERTION\n");
+            printf1(TAG_CTAP,"CTAP_NEXT_ASSERTION\n");
             if (getAssertionState.lastcmd == CTAP_GET_ASSERTION)
             {
                 status = ctap_get_next_assertion(&encoder);
@@ -1651,14 +1651,14 @@ uint8_t ctap_request(uint8_t * pkt_raw, int length, CTAP_RESPONSE * resp)
             }
             else
             {
-                //printf2(TAG_ERR, "unwanted GET_NEXT_ASSERTION.  lastcmd == 0x%02x\n", getAssertionState.lastcmd);
+                printf2(TAG_ERR, "unwanted GET_NEXT_ASSERTION.  lastcmd == 0x%02x\n", getAssertionState.lastcmd);
                 //dump_hex1(TAG_GREEN, (uint8_t*)&getAssertionState, sizeof(getAssertionState));
                 status = CTAP2_ERR_NOT_ALLOWED;
             }
             break;
         default:
             status = CTAP1_ERR_INVALID_COMMAND;
-            //printf2(TAG_ERR,"error, invalid cmd\n");
+            printf2(TAG_ERR,"error, invalid cmd\n");
     }
 
 done:
@@ -1670,7 +1670,7 @@ done:
         resp->length = 0;
     }
 
-    //printf1(TAG_CTAP,"cbor output structure: %d bytes.  Return 0x%02x\n", resp->length, status);
+    printf1(TAG_CTAP,"cbor output structure: %d bytes.  Return 0x%02x\n", resp->length, status);
 
     return status;
 }
@@ -1702,14 +1702,14 @@ void ctap_init()
 
     if (STATE.is_initialized == INITIALIZED_MARKER)
     {
-        //printf1(TAG_STOR,"Auth state is initialized\n");
+        printf1(TAG_STOR,"Auth state is initialized\n");
     }
     else
     {
-        //printf1(TAG_STOR,"Auth state is NOT initialized.  Initializing..\n");
+        printf1(TAG_STOR,"Auth state is NOT initialized.  Initializing..\n");
         if (authenticator_is_backup_initialized())
         {
-            //printf1(TAG_ERR,"Warning: memory corruption detected.  restoring from backup..\n");
+            printf1(TAG_ERR,"Warning: memory corruption detected.  restoring from backup..\n");
             authenticator_read_backup_state(&STATE);
             authenticator_write_state(&STATE, 0);
         }
@@ -1726,24 +1726,24 @@ void ctap_init()
 
     if (ctap_is_pin_set())
     {
-        //printf1(TAG_STOR,"pin code: \"%s\"\n", STATE.pin_code);
+        printf1(TAG_STOR,"pin code: \"%s\"\n", STATE.pin_code);
         crypto_sha256_init();
         crypto_sha256_update(STATE.pin_code, STATE.pin_code_length);
         crypto_sha256_final(PIN_CODE_HASH);
-        //printf1(TAG_STOR, "attempts_left: %d\n", STATE.remaining_tries);
+        printf1(TAG_STOR, "attempts_left: %d\n", STATE.remaining_tries);
     }
     else
     {
-        //printf1(TAG_STOR,"pin not set.\n");
+        printf1(TAG_STOR,"pin not set.\n");
     }
     if (ctap_device_locked())
     {
-        //printf1(TAG_ERR, "DEVICE LOCKED!\n");
+        printf1(TAG_ERR, "DEVICE LOCKED!\n");
     }
 
     if (ctap_generate_rng(PIN_TOKEN, PIN_TOKEN_SIZE) != 1)
     {
-        //printf2(TAG_ERR,"Error, rng failed\n");
+        printf2(TAG_ERR,"Error, rng failed\n");
         exit(1);
     }
 
@@ -1774,7 +1774,7 @@ void ctap_update_pin(uint8_t * pin, int len)
 {
     if (len > NEW_PIN_ENC_MIN_SIZE || len < 4)
     {
-        //printf2(TAG_ERR, "Update pin fail length\n");
+        printf2(TAG_ERR, "Update pin fail length\n");
         exit(1);
     }
     memset(STATE.pin_code, 0, NEW_PIN_ENC_MIN_SIZE);
@@ -1791,7 +1791,7 @@ void ctap_update_pin(uint8_t * pin, int len)
     authenticator_write_state(&STATE, 1);
     authenticator_write_state(&STATE, 0);
 
-    //printf1(TAG_CTAP, "New pin set: %s\n", STATE.pin_code);
+    printf1(TAG_CTAP, "New pin set: %s\n", STATE.pin_code);
 }
 
 uint8_t ctap_decrement_pin_attempts()
@@ -1804,18 +1804,18 @@ uint8_t ctap_decrement_pin_attempts()
     {
         STATE.remaining_tries--;
         ctap_flush_state(0);
-        //printf1(TAG_CP, "ATTEMPTS left: %d\n", STATE.remaining_tries);
+        printf1(TAG_CP, "ATTEMPTS left: %d\n", STATE.remaining_tries);
 
         if (ctap_device_locked())
         {
             memset(PIN_TOKEN,0,sizeof(PIN_TOKEN));
             memset(PIN_CODE_HASH,0,sizeof(PIN_CODE_HASH));
-            //printf1(TAG_CP, "Device locked!\n");
+            printf1(TAG_CP, "Device locked!\n");
         }
     }
     else
     {
-        //printf1(TAG_CP, "Device locked!\n");
+        printf1(TAG_CP, "Device locked!\n");
         return -1;
     }
     return 0;
@@ -1961,7 +1961,7 @@ void ctap_reset()
 
     if (ctap_generate_rng(PIN_TOKEN, PIN_TOKEN_SIZE) != 1)
     {
-        //printf2(TAG_ERR,"Error, rng failed\n");
+        printf2(TAG_ERR,"Error, rng failed\n");
         exit(1);
     }
 
