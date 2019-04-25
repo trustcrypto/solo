@@ -288,7 +288,7 @@ void ctap_flush_state(int backup)
     authenticator_write_state(&STATE, 0);
     if (backup)
     {
-        authenticator_write_state(&STATE, 1);
+        //authenticator_write_state(&STATE, 1);
     }
 }
 
@@ -1710,14 +1710,14 @@ void ctap_init()
         if (authenticator_is_backup_initialized())
         {
             printf1(TAG_ERR,"Warning: memory corruption detected.  restoring from backup..\n");
-            authenticator_read_backup_state(&STATE);
-            authenticator_write_state(&STATE, 0);
+            //authenticator_read_backup_state(&STATE);
+            //authenticator_write_state(&STATE, 0);
         }
         else
         {
             ctap_state_init();
             authenticator_write_state(&STATE, 0);
-            authenticator_write_state(&STATE, 1);
+            //authenticator_write_state(&STATE, 1);
 
         }
     }
@@ -1788,7 +1788,7 @@ void ctap_update_pin(uint8_t * pin, int len)
 
     STATE.is_pin_set = 1;
 
-    authenticator_write_state(&STATE, 1);
+    //authenticator_write_state(&STATE, 1);
     authenticator_write_state(&STATE, 0);
 
     printf1(TAG_CTAP, "New pin set: %s\n", STATE.pin_code);
@@ -1957,7 +1957,7 @@ void ctap_reset()
     ctap_state_init();
 
     authenticator_write_state(&STATE, 0);
-    authenticator_write_state(&STATE, 1);
+    //authenticator_write_state(&STATE, 1);
 
     if (ctap_generate_rng(PIN_TOKEN, PIN_TOKEN_SIZE) != 1)
     {

@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "oku2f.h"
 #include "WProgram.h"
 #include "arduino.h"
 #include "device.h"
@@ -71,7 +72,7 @@ static struct CID CIDS[10];
 
 static uint64_t active_cid_timestamp;
 
-static uint8_t ctap_buffer[CTAPHID_BUFFER_SIZE];
+extern uint8_t ctap_buffer[CTAPHID_BUFFER_SIZE];
 static uint32_t ctap_buffer_cid;
 static int ctap_buffer_cmd;
 static uint16_t ctap_buffer_bcnt;
@@ -595,8 +596,7 @@ uint8_t ctaphid_handle_packet(uint8_t * pkt_raw)
 		Serial.println("BUFFERING");
         return 0;
     }
-
-
+	
     switch(cmd)
     {
 
@@ -684,11 +684,8 @@ uint8_t ctaphid_handle_packet(uint8_t * pkt_raw)
                 return 0;
             }
             is_busy = 1;
-			extern uint8_t NEO_Color;
-			NEO_Color = 170; //Blue
-			fadeon();
             ctap_response_init(&ctap_resp);
-            u2f_request((struct u2f_request_apdu*)ctap_buffer, &ctap_resp);
+			if (!recv_custom_msg(ctap_buffer+7, pkt_raw)) u2f_request((struct u2f_request_apdu*)ctap_buffer, &ctap_resp);
 
             ctaphid_write_buffer_init(&wb);
             wb.cid = cid;

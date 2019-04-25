@@ -12,6 +12,7 @@
 #include "ctap.h"
 #include "crypto.h"
 #include "oku2f.h"
+#include "Time.h"
 
 extern uint8_t large_buffer[1024];
 
@@ -286,9 +287,12 @@ void authenticator_read_state(AuthenticatorState * a)
 {
     //uint32_t * ptr = (uint32_t *)flash_addr(STATE1_PAGE);
     //memmove(a,ptr,sizeof(AuthenticatorState));
+	//max size AuthenticatorState ~204bytes
+	uint8_t buffer[sizeof(AuthenticatorState)];
 	Serial.println("authenticator_read_state");
-	memcpy((uint8_t*)a, large_buffer, sizeof(AuthenticatorState));
-	byteprint(large_buffer,sizeof(AuthenticatorState));
+	ctap_flash (1, buffer, sizeof(AuthenticatorState), 1);
+	memcpy((uint8_t*)a, buffer, sizeof(AuthenticatorState));
+	byteprint(buffer,sizeof(AuthenticatorState));
 }
 
 void authenticator_read_backup_state(AuthenticatorState * a)
@@ -328,20 +332,26 @@ void authenticator_write_state(AuthenticatorState * a, int backup)
         flash_write(flash_addr(STATE2_PAGE), (uint8_t*)a, sizeof(AuthenticatorState));
     }
 	*/
+	//max size AuthenticatorState ~204bytes
+	uint8_t buffer[sizeof(AuthenticatorState)];
 	Serial.println("authenticator_write_state");
-	if (sizeof(AuthenticatorState) < sizeof(large_buffer)) {
-	memcpy(large_buffer, (uint8_t*)a, sizeof(AuthenticatorState));
-	}
-	byteprint(large_buffer,sizeof(AuthenticatorState));
+	memcpy(buffer, (uint8_t*)a, sizeof(AuthenticatorState));
+	ctap_flash (1, buffer, sizeof(AuthenticatorState), 3);
+	byteprint(buffer,sizeof(AuthenticatorState));
 }
 
 uint32_t ctap_atomic_count(int sel)
 {
-	static uint32_t counter1 = 25;
-    /*return 713;*/
+	uint32_t counter1 = getCounter();
+
     if (sel == 0)
     {
-        printf1(TAG_RED,"counter1: %d\n", counter1);
+        if (timeStatus() == timeNotSet) {
+			setCounter(counter1++);	
+		} else {
+			setCounter(now());
+		}
+		printf1(TAG_RED,"counter1: %d\n", counter1);
         return counter1++;
     }
     else
@@ -493,14 +503,14 @@ void ctap_reset_rk()
         flash_erase_page(RK_START_PAGE + i);
     }
 	*/
+	
 	Serial.println("ctap_reset_rk");
 }
 
 uint32_t ctap_rk_size()
 {
-    //return RK_NUM_PAGES * (PAGE_SIZE / sizeof(CTAP_residentKey));
+    return 3; //support 3 RKs for now
 	Serial.println("ctap_rk_size");
-	return 0;
 }
 
 void ctap_store_rk(int index,CTAP_residentKey * rk)
@@ -522,7 +532,7 @@ void ctap_store_rk(int index,CTAP_residentKey * rk)
     }
 	*/
 	Serial.println("ctap_store_rk");
-	ctap_rk_flash(index, (uint8_t*)rk, sizeof(CTAP_residentKey), 1);
+	ctap_flash(index, (uint8_t*)rk, sizeof(CTAP_residentKey), 4);
 }
 
 void ctap_load_rk(int index,CTAP_residentKey * rk)
@@ -544,7 +554,7 @@ void ctap_load_rk(int index,CTAP_residentKey * rk)
     }
 	*/
 	Serial.println("ctap_load_rk");
-	ctap_rk_flash(index, (uint8_t*)rk, sizeof(CTAP_residentKey), 0);
+	ctap_flash(index, (uint8_t*)rk, sizeof(CTAP_residentKey), 2);
 }
 
 void ctap_overwrite_rk(int index,CTAP_residentKey * rk)
@@ -569,7 +579,7 @@ void ctap_overwrite_rk(int index,CTAP_residentKey * rk)
     }
 	*/
 	Serial.println("ctap_overwrite_rk");
-	ctap_rk_flash(index, (uint8_t*)rk, sizeof(CTAP_residentKey), 2);
+	ctap_flash(index, (uint8_t*)rk, sizeof(CTAP_residentKey), 2);
 }
 /*
 void boot_st_bootloader()

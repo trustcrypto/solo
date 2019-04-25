@@ -12,6 +12,7 @@
 #include "device.h"
 #include "apdu.h"
 #include "oku2f.h"
+#include "okcore.h"
 #include "extensions/wallet.h"
 #ifdef ENABLE_U2F_EXTENSIONS
 #include "extensions/extensions.h"
@@ -60,8 +61,8 @@ void u2f_request_ex(APDU_HEADER *req, uint8_t *payload, uint32_t len, CTAP_RESPO
                 }
                 else
                 {
-
                     timestamp();
+					fadeon(170);//Blue
                     rcode = u2f_register((struct u2f_register_request*)payload);
                     printf1(TAG_TIME,"u2f_register time: %d ms\n", timestamp());
 
@@ -70,7 +71,8 @@ void u2f_request_ex(APDU_HEADER *req, uint8_t *payload, uint32_t len, CTAP_RESPO
             case U2F_AUTHENTICATE:
                 printf1(TAG_U2F, "U2F_AUTHENTICATE\n");
                 timestamp();
-                rcode = u2f_authenticate((struct u2f_authenticate_request*)payload, req->p1);
+				fadeon(170);//Blue
+				rcode = u2f_authenticate((struct u2f_authenticate_request*)payload, req->p1);
                 printf1(TAG_TIME,"u2f_authenticate time: %d ms\n", timestamp());
                 break;
             case U2F_VERSION:
@@ -222,6 +224,7 @@ static int16_t u2f_authenticate(struct u2f_authenticate_request * req, uint8_t c
     if (control == U2F_AUTHENTICATE_CHECK)
     {
         printf1(TAG_U2F, "CHECK-ONLY\r\n");
+		//TODO does checking use private key, if so outer and inner encryption method
         if (u2f_appid_eq(&req->kh, req->app) == 0)
         {
             return U2F_SW_CONDITIONS_NOT_SATISFIED;
