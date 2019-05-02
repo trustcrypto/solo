@@ -7,6 +7,8 @@
 #ifndef _CTAP_PARSE_H
 #define _CTAP_PARSE_H
 
+
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -18,11 +20,9 @@ extern "C"
 #define check_retr(r)    _check_ret(r,__LINE__, __FILE__);\
                         if ((r) != CborNoError) return r;
 
-
-extern void _check_ret(CborError ret, int line, const char * filename);
+extern void _check_ret(int ret, int line, const char * filename);
 
 const char * cbor_value_get_type_string(const CborValue *value);
-
 
 uint8_t parse_user(CTAP_makeCredential * MC, CborValue * val);
 uint8_t parse_pub_key_cred_param(CborValue * val, uint8_t * cred_type, int32_t * alg_type);
