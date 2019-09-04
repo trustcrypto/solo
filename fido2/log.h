@@ -10,14 +10,16 @@
 //#include APP_CONFIG
 #include <stdint.h>
 #include "Arduino.h"
-#include "okcore.h"
+#include "onlykey.h"
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-#ifndef DEBUG_LEVEL
+#ifdef DEBUG
+#define DEBUG_LEVEL 1
+#else
 #define DEBUG_LEVEL 0
 #endif
 
@@ -59,17 +61,7 @@ typedef enum
 #if DEBUG_LEVEL > 0
 
 void set_logging_mask(uint32_t mask);
-#define printf1(tag,fmt, ...) LOG(tag & ~(TAG_FILENO), NULL, 0, fmt, ##__VA_ARGS__)
-#define printf2(tag,fmt, ...) LOG(tag | TAG_FILENO,__FILE__, __LINE__, fmt, ##__VA_ARGS__)
-#define printf3(tag,fmt, ...) LOG(tag | TAG_FILENO,__FILE__, __LINE__, fmt, ##__VA_ARGS__)
 
-#define dump_hex1(tag,data,len) LOG_HEX(tag,data,len)
-
-uint32_t timestamp();
-
-#else
-
-#define set_logging_mask(mask)
 #define printf1(tag,fmt, ...) do {\
 			Serial.println(tag);\
             Serial.println(fmt);\
@@ -77,12 +69,37 @@ uint32_t timestamp();
 #define printf2(tag,fmt, ...) do {\
 			Serial.println(tag);\
 			Serial.println(fmt);\
+            Serial.println(__FILE__);\
+            Serial.println(__LINE__);\
            } while(0) 
 #define printf3(tag,fmt, ...) do {\
 			Serial.println(tag);\
 			Serial.println(fmt);\
+            Serial.println(__FILE__);\
+            Serial.println(__LINE__);\
            } while(0) 
+#define dump_hex1(tag,data,len) do {\
+            Serial.println(tag);\
+            byteprint(data,len);\
+           } while(0) 
+
+//#define printf1(tag,fmt, ...) LOG(tag & ~(TAG_FILENO), NULL, 0, fmt, ##__VA_ARGS__)
+//#define printf2(tag,fmt, ...) LOG(tag | TAG_FILENO,__FILE__, __LINE__, fmt, ##__VA_ARGS__)
+//#define printf3(tag,fmt, ...) LOG(tag | TAG_FILENO,__FILE__, __LINE__, fmt, ##__VA_ARGS__)
+
+//#define dump_hex1(tag,data,len) LOG_HEX(tag,data,len)
+
+//uint32_t timestamp();
 #define dump_hex1(tag,data,len) byteprint(data,len)
+#define timestamp()
+
+#else
+
+#define set_logging_mask(mask)
+#define printf1(tag,fmt, ...) 
+#define printf2(tag,fmt, ...)
+#define printf3(tag,fmt, ...)
+#define dump_hex1(tag,data,len) 
 #define timestamp()
 
 #endif

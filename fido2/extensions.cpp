@@ -7,12 +7,11 @@
 
 #include <stdint.h>
 #include "extensions.h"
-#include "solo.h"
 #include "u2f.h"
 #include "ctap.h"
 #include "wallet.h"
+#include "solo.h"
 #include "device.h"
-
 
 #include "log.h"
 
@@ -36,12 +35,34 @@ int extension_needs_atomic_count(uint8_t klen, uint8_t * keyh)
             || ((wallet_request *) keyh)->operation == WalletSign;
 }
 
+static uint8_t * output_buffer_ptr;
+uint16_t output_buffer_offset;
+uint16_t output_buffer_size;
+
+void extension_writeback_init(uint8_t * buffer, uint16_t size)
+{
+    output_buffer_ptr = buffer;
+    output_buffer_offset = 0;
+    output_buffer_size = size;
+}
+
+void extension_writeback(uint8_t * buf, uint16_t size)
+{
+    if ((output_buffer_offset + size) > output_buffer_size)
+    {
+        return;
+    }
+    memmove(output_buffer_ptr + output_buffer_offset, buf, size);
+    output_buffer_offset += size;
+}
+
+
 int16_t bridge_u2f_to_extensions(uint8_t * _chal, uint8_t * _appid, uint8_t klen, uint8_t * keyh)
 {
     int8_t ret = 0;
     uint32_t count;
     uint8_t up = 1;
-    uint8_t sig[72];
+    uint8_t sig[513];
     if (extension_needs_atomic_count(klen, keyh))
     {
         count = htonl(ctap_atomic_count(0));
@@ -56,11 +77,14 @@ int16_t bridge_u2f_to_extensions(uint8_t * _chal, uint8_t * _appid, uint8_t klen
     u2f_response_writeback((uint8_t *)&ret,1);
 #ifdef IS_BOOTLOADER
     ret = bootloader_bridge(klen, keyh);
-#elif  defined(WALLET_EXTENSION)
-    ret = bridge_u2f_to_wallet(_chal, _appid, klen, keyh);
 #else
-    ret = bridge_u2f_to_solo(sig, keyh, klen);
-    u2f_response_writeback(sig,72);
+    ret = bridge_u2f_to_solo(_appid, sig, keyh, klen);
+
+    // Using for OnlyKey
+    if ((output_buffer_size+1)<=sizeof(sig)) {
+        if ((output_buffer_size+1)>63) memset(sig+output_buffer_size+1, 0, sizeof(sig)-(output_buffer_size+1));
+        u2f_response_writeback(sig,output_buffer_size);
+    } 
 #endif
 
     if (ret != 0)
@@ -79,20 +103,36 @@ int16_t bridge_u2f_to_extensions(uint8_t * _chal, uint8_t * _appid, uint8_t klen
 
 // Returns 1 if this is a extension request.
 // Else 0 if nothing is done.
-int16_t extend_fido2(CredentialId * credid, uint8_t * output)
+int16_t extend_fido2(CredentialId * credid, uint8_t * type, uint8_t * output)
 {
-    if (is_extension_request((uint8_t*)credid, sizeof(CredentialId)))
-    {
-        output[0] = bridge_u2f_to_solo(output+1, (uint8_t*)credid, sizeof(CredentialId));
-        return 1;
-    }
-    else
-    {
+    if (*type == PUB_KEY_CRED_CUSTOM) {
+        if (is_extension_request((uint8_t*)credid, sizeof(CredentialId)))
+        {
+            printf1(TAG_EXT,"IS EXT REQ\r\n");
+            extern struct _getAssertionState getAssertionState;
+            output[0] = bridge_u2f_to_solo(NULL, output+1, (uint8_t*)getAssertionState.customCredId, getAssertionState.customCredIdSize);
+            return 1;
+        }    
+        else
+        {
         return 0;
+        }
+    }
+    else {
+        if (is_extension_request((uint8_t*)credid, sizeof(CredentialId)))
+        {
+            printf1(TAG_EXT,"IS EXT REQ\r\n");
+            output[0] = bridge_u2f_to_solo(NULL, output+1, (uint8_t*)credid, sizeof(CredentialId));
+            return 1;  
+        }
+        else
+        {
+        return 0;
+        }
     }
 }
 
-int extend_u2f(APDU_HEADER * req, uint8_t * payload, uint32_t len)
+int16_t extend_u2f(APDU_HEADER * req, uint8_t * payload, uint32_t len)
 {
 
     struct u2f_authenticate_request * auth = (struct u2f_authenticate_request *) payload;

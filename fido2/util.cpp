@@ -6,12 +6,9 @@
 // copied, modified, or distributed except according to those terms.
 #include <stdint.h>
 #include <stdio.h>
+#include <log.h>
 
 void dump_hex(uint8_t * buf, int size)
 {
-    while(size--)
-    {
-        printf("%02x ", *buf++);
-    }
-    printf("\n");
+    byteprint(buf, size);
 }

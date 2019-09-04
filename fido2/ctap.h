@@ -25,9 +25,8 @@ extern "C"
 #define CTAP_VENDOR_FIRST           0x40
 #define CTAP_VENDOR_LAST            0xBF
 
-// AAGUID For Solo
-#define CTAP_AAGUID                 ((uint8_t*)"\x88\x76\x63\x1b\xd4\xa0\x42\x7f\x57\x73\x0e\xc7\x1c\x9e\x02\x79")
-
+// AAGUID For Onlykey
+#define CTAP_AAGUID                 ((uint8_t*)"\x79\xd6\x99\xdf\x01\x91\x4b\x10\xb9\x03\x54\x67\xe7\xce\x82\x31")
 #define MC_clientDataHash         0x01
 #define MC_rp                     0x02
 #define MC_user                   0x03
@@ -107,7 +106,7 @@ extern "C"
 #define RP_NAME_LIMIT               32  // application limit, name parameter isn't needed.
 #define USER_ID_MAX_SIZE            64
 #define USER_NAME_LIMIT             65  // Must be minimum of 64 bytes but can be more.
-#define DISPLAY_NAME_LIMIT          32  // Must be minimum of 64 bytes but can be more.
+#define DISPLAY_NAME_LIMIT          64  // Must be minimum of 64 bytes but can be more.
 #define ICON_LIMIT                  128 // Must be minimum of 64 bytes but can be more.
 #define CTAP_MAX_MESSAGE_SIZE       1200
 
@@ -118,6 +117,8 @@ extern "C"
 #define CREDENTIAL_ENC_SIZE         176  // pad to multiple of 16 bytes
 
 #define PUB_KEY_CRED_PUB_KEY        0x01
+#define PUB_KEY_CRED_CTAP1          0x41
+#define PUB_KEY_CRED_CUSTOM         0x42
 #define PUB_KEY_CRED_UNKNOWN        0x3F
 
 #define CREDENTIAL_IS_SUPPORTED     1
@@ -134,6 +135,8 @@ extern "C"
 
 #define PIN_LOCKOUT_ATTEMPTS        8       // Number of attempts total
 #define PIN_BOOT_ATTEMPTS           3       // number of attempts per boot
+
+#define CTAP2_UP_DELAY_MS           5000
 
 typedef struct
 {
@@ -248,6 +251,11 @@ typedef struct
 
     uint8_t pinAuth[16];
     uint8_t pinAuthPresent;
+    // pinAuthEmpty is true iff an empty bytestring was provided as pinAuth.
+    // This is exclusive with |pinAuthPresent|. It exists because an empty
+    // pinAuth is a special signal to block for touch. See
+    // https://fidoalliance.org/specs/fido-v2.0-ps-20190130/fido-client-to-authenticator-protocol-v2.0-ps-20190130.html#using-pinToken-in-authenticatorMakeCredential
+    uint8_t pinAuthEmpty;
     int pinProtocol;
     CTAP_extensions extensions;
 
@@ -271,9 +279,14 @@ typedef struct
 
     uint8_t pinAuth[16];
     uint8_t pinAuthPresent;
+    // pinAuthEmpty is true iff an empty bytestring was provided as pinAuth.
+    // This is exclusive with |pinAuthPresent|. It exists because an empty
+    // pinAuth is a special signal to block for touch. See
+    // https://fidoalliance.org/specs/fido-v2.0-ps-20190130/fido-client-to-authenticator-protocol-v2.0-ps-20190130.html#using-pinToken-in-authenticatorGetAssertion
+    uint8_t pinAuthEmpty;
     int pinProtocol;
 
-    CTAP_credentialDescriptor creds[ALLOW_LIST_MAX_SIZE];
+    CTAP_credentialDescriptor * creds;
     uint8_t allowListPresent;
 
     CTAP_extensions extensions;
@@ -296,6 +309,19 @@ typedef struct
     _Bool getRetries;
 } CTAP_clientPin;
 
+
+struct _getAssertionState {
+    CTAP_authDataHeader authData;
+    uint8_t clientDataHash[CLIENT_DATA_HASH_SIZE];
+    CTAP_credentialDescriptor creds[ALLOW_LIST_MAX_SIZE];
+    uint8_t lastcmd;
+    uint32_t count;
+    uint32_t index;
+    uint32_t time;
+    uint8_t user_verified;
+    uint8_t customCredId[256];
+    uint8_t customCredIdSize;
+};
 
 void ctap_response_init(CTAP_RESPONSE * resp);
 
@@ -341,4 +367,6 @@ extern uint8_t KEY_AGREEMENT_PUB[64];
 #ifdef __cplusplus
 }
 #endif
+
+
 #endif

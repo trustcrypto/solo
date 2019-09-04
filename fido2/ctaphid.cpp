@@ -8,9 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "oku2f.h"
 #include "WProgram.h"
-#include "arduino.h"
+#include "Arduino.h"
 #include "device.h"
 #include "ctaphid.h"
 #include "ctap.h"
@@ -24,9 +23,7 @@
 // and the following headers too
 //#include "sha2.h"
 #include "crypto.h"
-
 //#include APP_CONFIG
-
 typedef enum
 {
     IDLE = 0,
@@ -232,7 +229,7 @@ static int buffer_status()
     }
     else if (ctap_buffer_offset == ctap_buffer_bcnt)
     {
-		Serial.println("BUFFERED");
+        printf1(TAG_HID, "BUFFERED");
         return BUFFERED;
     }
     else
@@ -240,7 +237,6 @@ static int buffer_status()
         return BUFFERING;
     }
 }
-
 static int buffer_cmd()
 {
     return ctap_buffer_cmd;
@@ -356,8 +352,7 @@ void ctaphid_check_timeouts()
     {
         if (CIDS[i].busy && ((millis() - CIDS[i].last_used) >= 750))
         {
-            Serial.println("TIMEOUT CID: ");
-			Serial.println(CIDS[i].cid);
+            printf1(TAG_HID, "TIMEOUT CID: %08x\n", CIDS[i].cid);
             ctaphid_send_error(CIDS[i].cid, CTAP1_ERR_TIMEOUT);
             CIDS[i].busy = 0;
             if (CIDS[i].cid == buffer_cid())
@@ -373,8 +368,7 @@ void ctaphid_check_timeouts()
 void ctaphid_update_status(int8_t status)
 {
     CTAPHID_WRITE_BUFFER wb;
-    Serial.println("Send device update");
-	Serial.println(status);
+    printf1(TAG_HID, "Send device update %08x \n", status);
     ctaphid_write_buffer_init(&wb);
 
     wb.cid = buffer_cid();
@@ -389,17 +383,15 @@ static int ctaphid_buffer_packet(uint8_t * pkt_raw, uint8_t * cmd, uint32_t * ci
 {
     CTAPHID_PACKET * pkt = (CTAPHID_PACKET *)(pkt_raw);
 
-    Serial.println("Recv packet");
-
-    Serial.println( pkt->cid);
-    Serial.println(pkt->pkt.init.cmd);
-    if (!is_cont_pkt(pkt)) {
-		Serial.println(ctaphid_packet_len(pkt));
-	}
+    printf1(TAG_HID, "Recv packet\n");
+    printf1(TAG_HID, "  CID: %08x \n", pkt->cid);
+    printf1(TAG_HID, "  cmd: %02x\n", pkt->pkt.init.cmd);
+    if (!is_cont_pkt(pkt)) {printf1(TAG_HID, "  length: %d\n", ctaphid_packet_len(pkt));}
 
     int ret;
     uint32_t oldcid;
     uint32_t newcid;
+
 
 
     *cid = pkt->cid;
@@ -408,13 +400,13 @@ static int ctaphid_buffer_packet(uint8_t * pkt_raw, uint8_t * cmd, uint32_t * ci
     {
         if (ctaphid_packet_len(pkt) != 8)
         {
-            Serial.println( "Error,invalid length field for init packet");
+            printf2(TAG_ERR, "Error,invalid length field for init packet\n");
             *cmd = CTAP1_ERR_INVALID_LENGTH;
             return HID_ERROR;
         }
         if (pkt->cid == 0)
         {
-            Serial.println("Error, invalid cid 0");
+            printf2(TAG_ERR,"Error, invalid cid 0\n");
             *cmd = CTAP1_ERR_INVALID_CHANNEL;
             return HID_ERROR;
         }
@@ -423,7 +415,7 @@ static int ctaphid_buffer_packet(uint8_t * pkt_raw, uint8_t * cmd, uint32_t * ci
         if (is_broadcast(pkt))
         {
             // Check if any existing cids are busy first ?
-            Serial.println("adding a new cid\n");
+            printf1(TAG_HID,"adding a new cid\n");
             oldcid = CTAPHID_BROADCAST_CID;
             newcid = get_new_cid();
             ret = add_cid(newcid);
@@ -431,7 +423,7 @@ static int ctaphid_buffer_packet(uint8_t * pkt_raw, uint8_t * cmd, uint32_t * ci
         }
         else
         {
-            Serial.println("synchronizing to cid");
+            printf1(TAG_HID, "synchronizing to cid\n");
             oldcid = pkt->cid;
             newcid = pkt->cid;
             if (cid_exists(newcid))
@@ -441,7 +433,7 @@ static int ctaphid_buffer_packet(uint8_t * pkt_raw, uint8_t * cmd, uint32_t * ci
         }
         if (ret == -1)
         {
-            Serial.println( "Error, not enough memory for new CID.  return BUSY.");
+            printf2(TAG_ERR, "Error, not enough memory for new CID.  return BUSY.\n");
             *cmd = CTAP1_ERR_CHANNEL_BUSY;
             return HID_ERROR;
         }
@@ -472,9 +464,8 @@ static int ctaphid_buffer_packet(uint8_t * pkt_raw, uint8_t * cmd, uint32_t * ci
             {
                 if (pkt->cid == buffer_cid() && ! is_cont_pkt(pkt))
                 {
-                    Serial.println("INVALID_SEQ");
-                    Serial.println(ctap_buffer_offset);
-					Serial.println(ctap_buffer_bcnt);
+                    printf2(TAG_ERR,"INVALID_SEQ\n");
+                    printf2(TAG_ERR,"Have %d/%d bytes\n", ctap_buffer_offset, ctap_buffer_bcnt);
                     *cmd = CTAP1_ERR_INVALID_SEQ;
                     return HID_ERROR;
                 }
@@ -482,15 +473,13 @@ static int ctaphid_buffer_packet(uint8_t * pkt_raw, uint8_t * cmd, uint32_t * ci
                 {
                     if (! is_cont_pkt(pkt))
                     {
-                        Serial.println("Channel busy");
-						Serial.println(buffer_cid());
+                        printf2(TAG_ERR,"BUSY with %08x\n", buffer_cid());
                         *cmd = CTAP1_ERR_CHANNEL_BUSY;
                         return HID_ERROR;
                     }
                     else
                     {
-                        Serial.println("ignoring random cont packet from ");
-						Serial.println(pkt->cid);
+                        printf2(TAG_ERR,"ignoring random cont packet from %04x\n",pkt->cid);
                         return HID_IGNORE;
                     }
                 }
@@ -500,8 +489,7 @@ static int ctaphid_buffer_packet(uint8_t * pkt_raw, uint8_t * cmd, uint32_t * ci
 
                 if (ctaphid_packet_len(pkt) > CTAPHID_BUFFER_SIZE)
                 {
-                    Serial.println("Invalid Length");
-					*cmd = CTAP1_ERR_INVALID_LENGTH;
+                    *cmd = CTAP1_ERR_INVALID_LENGTH;
                     return HID_ERROR;
                 }
             }
@@ -509,45 +497,53 @@ static int ctaphid_buffer_packet(uint8_t * pkt_raw, uint8_t * cmd, uint32_t * ci
             {
                 if (buffer_status() == EMPTY || pkt->cid != buffer_cid())
                 {
-                    Serial.println("ignoring random cont packet from ");
-					Serial.println(pkt->cid);
+                    printf2(TAG_ERR,"ignoring random cont packet from %04x\n",pkt->cid);
                     return HID_IGNORE;
                 }
             }
 
             if (buffer_packet(pkt) == SEQUENCE_ERROR)
             {
-                Serial.println("Buffering sequence error");
+                printf2(TAG_ERR,"Buffering sequence error\n");
                 *cmd = CTAP1_ERR_INVALID_SEQ;
                 return HID_ERROR;
             }
             ret = cid_refresh(pkt->cid);
             if (ret != 0)
             {
-                Serial.println("Error, refresh cid failed");
+                printf2(TAG_ERR,"Error, refresh cid failed\n");
                 exit(1);
             }
         }
         else if (is_cont_pkt(pkt))
         {
-            Serial.println("ignoring unwarranted cont packet");
-
-            // Ignore
+            printf2(TAG_ERR,"ignoring unwarranted cont packet\n");
+            // Testing transport
+            /*
+            uint8_t *buffer = (uint8_t *)pkt;
+            if (buffer[2]==5) {
+              int datalen = 0;
+              if (buffer[3] + buffer[4] == 0) {
+                if (!buffer[5]) datalen=buffer[6];
+                else datalen=(256*buffer[5])+buffer[6];
+              }
+              extern int outputmode;
+              if (outputmode!=3) outputmode=2; //USB HID
+              process_packets(buffer, datalen, buffer+4);
+            } */ 
             return HID_IGNORE;
         }
         else
         {
-            Serial.println("BUSY");
+            printf2(TAG_ERR,"BUSY\n");
             *cmd = CTAP1_ERR_CHANNEL_BUSY;
             return HID_ERROR;
         }
     }
 
+
     *len = buffer_len();
-	Serial.println("Length/buffercmd");
-	Serial.println(*len);
     *cmd = buffer_cmd();
-	Serial.println(*cmd);
     return buffer_status();
 }
 
@@ -572,8 +568,7 @@ uint8_t ctaphid_handle_packet(uint8_t * pkt_raw)
 
     if (bufstatus == HID_IGNORE)
     {
-        Serial.println("HID_IGNORE");
-		return 0;
+        return 0;
     }
 
     if (bufstatus == HID_ERROR)
@@ -583,9 +578,6 @@ uint8_t ctaphid_handle_packet(uint8_t * pkt_raw)
         {
             buffer_reset();
         }
-		Serial.println("HID_ERROR CID/CMD:");
-		Serial.print(cid);
-		Serial.print(cmd);
         ctaphid_send_error(cid, cmd);
         return 0;
     }
@@ -593,20 +585,20 @@ uint8_t ctaphid_handle_packet(uint8_t * pkt_raw)
     if (bufstatus == BUFFERING)
     {
         active_cid_timestamp = millis();
-		Serial.println("BUFFERING");
         return 0;
     }
+
 
     switch(cmd)
     {
 
         case CTAPHID_INIT:
-            Serial.println("CTAPHID_INIT, error this should already be handled");
+            printf2(TAG_ERR,"CTAPHID_INIT, error this should already be handled\n");
             exit(1);
             break;
 #ifndef DISABLE_CTAPHID_PING
         case CTAPHID_PING:
-            Serial.println("CTAPHID_PING");
+            printf1(TAG_HID,"CTAPHID_PING\n");
 
             ctaphid_write_buffer_init(&wb);
             wb.cid = cid;
@@ -615,13 +607,13 @@ uint8_t ctaphid_handle_packet(uint8_t * pkt_raw)
             timestamp();
             ctaphid_write(&wb, ctap_buffer, len);
             ctaphid_write(&wb, NULL,0);
-            Serial.println("PING writeback:");
+            printf1(TAG_TIME,"PING writeback: %d ms\n",timestamp());
 
             break;
 #endif
 #ifndef DISABLE_CTAPHID_WINK
         case CTAPHID_WINK:
-            Serial.println("CTAPHID_WINK\n");
+            printf1(TAG_HID,"CTAPHID_WINK\n");
 
             ctaphid_write_buffer_init(&wb);
 
@@ -636,17 +628,17 @@ uint8_t ctaphid_handle_packet(uint8_t * pkt_raw)
 #endif
 #ifndef DISABLE_CTAPHID_CBOR
         case CTAPHID_CBOR:
-            Serial.println("CTAPHID_CBOR");
+            printf1(TAG_HID,"CTAPHID_CBOR\n");
 
             if (len == 0)
             {
-                Serial.println("Error,invalid 0 length field for cbor packet");
+                printf2(TAG_ERR,"Error,invalid 0 length field for cbor packet\n");
                 ctaphid_send_error(cid, CTAP1_ERR_INVALID_LENGTH);
                 return 0;
             }
             if (is_busy)
             {
-                Serial.println("Channel busy for CBOR");
+                printf1(TAG_HID,"Channel busy for CBOR\n");
                 ctaphid_send_error(cid, CTAP1_ERR_CHANNEL_BUSY);
                 return 0;
             }
@@ -664,28 +656,30 @@ uint8_t ctaphid_handle_packet(uint8_t * pkt_raw)
             ctaphid_write(&wb, &status, 1);
             ctaphid_write(&wb, ctap_resp.data, ctap_resp.length);
             ctaphid_write(&wb, NULL, 0);
-            Serial.println("CBOR writeback:");
+            printf1(TAG_TIME,"CBOR writeback: %d ms\n",timestamp());
             is_busy = 0;
+            
             break;
 #endif
         case CTAPHID_MSG:
 
-            Serial.println("CTAPHID_MSG\n");
+            printf1(TAG_HID,"CTAPHID_MSG\n");
             if (len == 0)
             {
-                Serial.println("Error,invalid 0 length field for MSG/U2F packet");
+                printf2(TAG_ERR,"Error,invalid 0 length field for MSG/U2F packet\n");
                 ctaphid_send_error(cid, CTAP1_ERR_INVALID_LENGTH);
                 return 0;
             }
             if (is_busy)
             {
-                Serial.println("Channel busy for MSG\n");
+                printf1(TAG_HID,"Channel busy for MSG\n");
                 ctaphid_send_error(cid, CTAP1_ERR_CHANNEL_BUSY);
                 return 0;
             }
             is_busy = 1;
             ctap_response_init(&ctap_resp);
-			if (!recv_custom_msg(ctap_buffer+7, pkt_raw)) u2f_request((struct u2f_request_apdu*)ctap_buffer, &ctap_resp);
+
+            u2f_request((struct u2f_request_apdu*)ctap_buffer, &ctap_resp);
 
             ctaphid_write_buffer_init(&wb);
             wb.cid = cid;
@@ -693,16 +687,17 @@ uint8_t ctaphid_handle_packet(uint8_t * pkt_raw)
             wb.bcnt = (ctap_resp.length);
 
             ctaphid_write(&wb, ctap_resp.data, ctap_resp.length);
+            
             ctaphid_write(&wb, NULL, 0);
             is_busy = 0;
             break;
         case CTAPHID_CANCEL:
-            Serial.println("CTAPHID_CANCEL\n");
+            printf1(TAG_HID,"CTAPHID_CANCEL\n");
             is_busy = 0;
             break;
 #if defined(IS_BOOTLOADER)
         case CTAPHID_BOOT:
-            Serial.println("CTAPHID_BOOT\n");
+            printf1(TAG_HID,"CTAPHID_BOOT\n");
             ctap_response_init(&ctap_resp);
             u2f_set_writeback_buffer(&ctap_resp);
             is_busy = bootloader_bridge(len, ctap_buffer);
@@ -719,7 +714,7 @@ uint8_t ctaphid_handle_packet(uint8_t * pkt_raw)
 #endif
 #if defined(SOLO_HACKER)
         case CTAPHID_ENTERBOOT:
-            Serial.println("CTAPHID_ENTERBOOT\n");
+            printf1(TAG_HID,"CTAPHID_ENTERBOOT\n");
             boot_solo_bootloader();
             ctaphid_write_buffer_init(&wb);
             wb.cid = cid;
@@ -729,13 +724,13 @@ uint8_t ctaphid_handle_packet(uint8_t * pkt_raw)
             is_busy = 0;
         break;
         case CTAPHID_ENTERSTBOOT:
-            Serial.println("CTAPHID_ENTERBOOT\n");
+            printf1(TAG_HID,"CTAPHID_ENTERBOOT\n");
             boot_st_bootloader();
         break;
 #endif
 #if !defined(IS_BOOTLOADER)
         case CTAPHID_GETRNG:
-            Serial.println("CTAPHID_GETRNG\n");
+            printf1(TAG_HID,"CTAPHID_GETRNG\n");
             ctap_response_init(&ctap_resp);
             ctaphid_write_buffer_init(&wb);
             wb.cid = cid;
@@ -760,7 +755,7 @@ uint8_t ctaphid_handle_packet(uint8_t * pkt_raw)
              */
 
             // some random logging
-            Serial.println("CTAPHID_PROBE\n");
+            printf1(TAG_HID,"CTAPHID_PROBE\n");
             // initialise CTAP response object
             ctap_response_init(&ctap_resp);
             // initialise write buffer
@@ -861,7 +856,7 @@ uint8_t ctaphid_handle_packet(uint8_t * pkt_raw)
         /*
         case CTAPHID_SHA256:
             // some random logging
-            Serial.println("CTAPHID_SHA256\n");
+            printf1(TAG_HID,"CTAPHID_SHA256\n");
             // initialise CTAP response object
             ctap_response_init(&ctap_resp);
             // initialise write buffer
@@ -880,7 +875,7 @@ uint8_t ctaphid_handle_packet(uint8_t * pkt_raw)
         break;
         case CTAPHID_SHA512:
             // some random logging
-            Serial.println("CTAPHID_SHA512\n");
+            printf1(TAG_HID,"CTAPHID_SHA512\n");
             // initialise CTAP response object
             ctap_response_init(&ctap_resp);
             // initialise write buffer
@@ -900,15 +895,14 @@ uint8_t ctaphid_handle_packet(uint8_t * pkt_raw)
         */
 #endif
         default:
-            Serial.println("error, unimplemented HID cmd: ");
-			Serial.println(buffer_cmd());
+            printf2(TAG_ERR,"error, unimplemented HID cmd: %02x\r\n", buffer_cmd());
             ctaphid_send_error(cid, CTAP1_ERR_INVALID_COMMAND);
             break;
     }
     cid_del(cid);
     buffer_reset();
 
-    Serial.println("n");
+    printf1(TAG_HID,"\n");
     if (!is_busy) return cmd;
     else return 0;
 
