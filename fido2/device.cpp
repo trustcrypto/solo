@@ -51,12 +51,16 @@ void U2Finit()
   onlykey_eeget_U2Fcertlen(length);
   int length2 = length[0] << 8 | length[1];
   if (length2 != 0) {
-  extern uint16_t attestation_cert_der_size;
-  attestation_cert_der_size=length2;
-  onlykey_flashget_U2F();
+    extern uint16_t attestation_cert_der_size;
+    attestation_cert_der_size=length2;
+    onlykey_flashget_U2F();
   } else {
-  byteprint((uint8_t*)attestation_key,sizeof(attestation_key));
-  byteprint((uint8_t*)attestation_cert_der,sizeof(attestation_cert_der));
+      // Future feature, built in attestation key
+      // Add checking here for built-in attestation key
+    #ifdef DEBUG
+    byteprint((uint8_t*)attestation_key,sizeof(attestation_key));
+    byteprint((uint8_t*)attestation_cert_der,sizeof(attestation_cert_der));
+    #endif
   }
   //DERIVEKEY(0 , (uint8_t*)attestation_key); //Derive key from default key in slot 32
   //memcpy(handlekey, ecc_private_key, 32); // Copy derived key to handlekey
@@ -94,6 +98,36 @@ void update_SHA256(const uECC_HashContext *base,
 void finish_SHA256(const uECC_HashContext *base, uint8_t *hash_result) {
     SHA256_HashContext *context = (SHA256_HashContext *)base;
     sha256_final(&context->ctx, hash_result);
+}
+
+int webcryptcheck (uint8_t * _appid) {
+    const char stored_appid[] = "\xEB\xAE\xE3\x29\x09\x0A\x5B\x51\x92\xE0\xBD\x13\x2D\x5C\x22\xC6\xD1\x8A\x4D\x23\xFC\x8E\xFD\x4A\x21\xAF\xA8\xE4\xC8\xFD\x93\x54";
+    //const char stored_appid_u2f[] = "\x23\xCD\xF4\x07\xFD\x90\x4F\xEE\x8B\x96\x40\x08\xB0\x49\xC5\x5E\xA8\x81\x13\x36\xA3\xA5\x17\x1B\x58\xD6\x6A\xEC\xF3\x79\xE7\x4A";
+    //const char stored_clientDataHash[] = "\x57\x81\xAF\x14\xB9\x71\x6D\x87\x24\x61\x8E\x8A\x6F\xD6\x50\xEB\x6B\x02\x6B\xEC\x6B\xAD\xB3\xB1\xA3\x01\xAA\x0D\x75\xF6\x0C\x14";
+    //const char stored_clientDataHash_u2f[] = "\x78\x4E\x39\xF2\xDA\xF8\xE6\xA4\xBB\xD7\x15\x0D\x39\x34\xCC\x81\x5F\x6E\xE7\x6F\x57\xBC\x02\x6A\x0E\x49\x33\x13\xF4\x36\x63\x47"; 
+    const char stored_apprpid[] = "\x61\x70\x70\x73\x2E\x63\x72\x70\x2E\x74\x6F\x02";
+	uint8_t rpid[12];
+    int appid_match1;
+	int appid_match2;
+    extern uint8_t ctap_buffer[CTAPHID_BUFFER_SIZE];
+    memcpy(rpid, ctap_buffer+4, 12); // app.crp.to
+    #ifdef DEBUG
+	Serial.println("Ctap buffer:");
+    byteprint(ctap_buffer, 1024);
+	Serial.println("stored_apprpid:");
+    byteprint((uint8_t*)stored_apprpid, 12);
+    Serial.println("rpid:");
+    byteprint((uint8_t*)rpid, 12);
+	Serial.println("stored_appid:");
+    byteprint((uint8_t*)stored_appid, 32);
+	Serial.println("_appid:");
+    byteprint(_appid, 32);
+	#endif
+    
+    appid_match1 = memcmp (stored_apprpid, rpid, 12);
+	appid_match2 = memcmp (stored_appid, _appid, 32);
+    if (appid_match1 == 0 || appid_match2 == 0) return 1;
+    else return 0;
 }
 
 void store_FIDO_response (uint8_t *data, int len, bool encrypt) {
@@ -158,8 +192,16 @@ int device_is_nfc()
 void ctaphid_write_block(uint8_t * data)
 {
     printf1(TAG_GREEN, "Sending FIDO response block");
+    #ifdef DEBUG
 	byteprint(data, 64);
-	RawHID.send(data, 100);
+    #endif
+    extern uint8_t useinterface;
+
+    if (useinterface == 2) {
+        RawHID.send2(data, 100);
+    } else {
+        RawHID.send(data, 100);
+    }
 }
 
 
@@ -175,7 +217,9 @@ void authenticator_read_state(AuthenticatorState * a)
     printf1(TAG_GREEN, "authenticator_read_state");
 	ctap_flash (0, buffer, sizeof(AuthenticatorState), 3);
 	memcpy((uint8_t*)a, buffer, sizeof(AuthenticatorState));
+    #ifdef DEBUG
 	byteprint(buffer,sizeof(AuthenticatorState));
+    #endif
 }
 
 void authenticator_read_backup_state(AuthenticatorState * a)
@@ -200,7 +244,9 @@ void authenticator_write_state(AuthenticatorState * a, int backup)
 	memcpy(buffer, (uint8_t*)a, sizeof(AuthenticatorState));
     printf1(TAG_GREEN, "authenticator_write_state size %d\n", sizeof(AuthenticatorState));
     ctap_flash (0, buffer, sizeof(AuthenticatorState), 4);
+    #ifdef DEBUG
 	byteprint(buffer,sizeof(AuthenticatorState));
+    #endif
 }
 
 uint32_t ctap_atomic_count(int sel)

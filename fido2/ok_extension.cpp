@@ -103,17 +103,13 @@ extern uint8_t ecc_private_key[MAX_ECC_KEY_SIZE];
 extern uint8_t recv_buffer[64];
 extern uint8_t pending_operation;
 extern int packet_buffer_offset;
+extern uint8_t packet_buffer_details[5];
 
-const char stored_appid[] = "\xEB\xAE\xE3\x29\x09\x0A\x5B\x51\x92\xE0\xBD\x13\x2D\x5C\x22\xC6\xD1\x8A\x4D\x23\xFC\x8E\xFD\x4A\x21\xAF\xA8\xE4\xC8\xFD\x93\x54";
-//const char stored_appid_u2f[] = "\x23\xCD\xF4\x07\xFD\x90\x4F\xEE\x8B\x96\x40\x08\xB0\x49\xC5\x5E\xA8\x81\x13\x36\xA3\xA5\x17\x1B\x58\xD6\x6A\xEC\xF3\x79\xE7\x4A";
-//const char stored_clientDataHash[] = "\x57\x81\xAF\x14\xB9\x71\x6D\x87\x24\x61\x8E\x8A\x6F\xD6\x50\xEB\x6B\x02\x6B\xEC\x6B\xAD\xB3\xB1\xA3\x01\xAA\x0D\x75\xF6\x0C\x14";
-//const char stored_clientDataHash_u2f[] = "\x78\x4E\x39\xF2\xDA\xF8\xE6\xA4\xBB\xD7\x15\x0D\x39\x34\xCC\x81\x5F\x6E\xE7\x6F\x57\xBC\x02\x6A\x0E\x49\x33\x13\xF4\x36\x63\x47"; 
-const char stored_apprpid[] = "\x61\x70\x70\x73\x2E\x63\x72\x70\x2E\x74\x6F\x02";
+
 
 int16_t bridge_to_onlykey(uint8_t * _appid, uint8_t * keyh, int handle_len, uint8_t * output)
 {
-    int appid_match1;
-	int appid_match2;
+
     int8_t ret = 0;
 	uint8_t client_handle[256];
 	handle_len-=10;
@@ -121,29 +117,18 @@ int16_t bridge_to_onlykey(uint8_t * _appid, uint8_t * keyh, int handle_len, uint
 	uint8_t opt1 = keyh[1];
 	uint8_t opt2 = keyh[2];
 	uint8_t opt3 = keyh[3];
-	uint8_t rpid[12];
-	extern uint8_t ctap_buffer[CTAPHID_BUFFER_SIZE];
+	uint8_t browser;
+	uint8_t os;
+
 
 	memcpy(client_handle, keyh+10, handle_len);
-	memcpy(rpid, ctap_buffer+4, 12); // app.crp.to
-	
-    appid_match1 = memcmp (stored_apprpid, rpid, 12);
-	appid_match2 = memcmp (stored_appid, _appid, 32);
+		
 	#ifdef DEBUG
-	Serial.println("Ctap buffer:");
-	extern uint8_t ctap_buffer[CTAPHID_BUFFER_SIZE];
-    byteprint(ctap_buffer, 1024);
-	Serial.println("stored_apprpid:");
-    byteprint((uint8_t*)stored_apprpid, 12);
-	Serial.println("stored_appid:");
-    byteprint((uint8_t*)stored_appid, 32);
-	Serial.println("_appid:");
-    byteprint(_appid, 32);
     Serial.println("Keyhandle:");
     byteprint(client_handle, handle_len);
 	#endif
 
-    if (appid_match1 == 0 || appid_match2 == 0) { // Only allow crp.to and localhost
+    if (webcryptcheck(_appid)) { // Only allow crp.to and localhost
       outputmode=DISCARD; // Discard output 
       //Todo add localhost support
 		if (cmd == OKSETTIME && !CRYPTO_AUTH) {
@@ -159,9 +144,15 @@ int16_t bridge_to_onlykey(uint8_t * _appid, uint8_t * keyh, int handle_len, uint
 			outputmode=WEBAUTHN;
 			send_transport_response (ecc_public_key, 32+sizeof(UNLOCKED), false, false); //Don't encrypt and send right away
 			memcpy(ecc_public_key, client_handle+9, 32); //Get app public key
+			browser = client_handle[9+32];
+			os = client_handle[9+32+1];
 			#ifdef DEBUG
 			Serial.println("App public = ");
 			byteprint(ecc_public_key, 32);
+			Serial.print("Browser = ");
+			Serial.println((char)browser);
+			Serial.print("OS = ");
+			Serial.println((char)os);
 			#endif
 			uint8_t shared[32];
 			type = 1;
@@ -206,6 +197,9 @@ int16_t bridge_to_onlykey(uint8_t * _appid, uint8_t * keyh, int handle_len, uint
 			// Break the FIDO message into packets
 			else if (!CRYPTO_AUTH) {
 				int i=0;
+				if (!packet_buffer_details[3]) packet_buffer_details[3] = opt3; // first packet
+				else if (opt3 <= packet_buffer_details[3]) return 0; // duplicate packet, thanks to win 10 1903 sending all FIDO2 messages twice
+
 				while(handle_len>0) { // Max size packet minus header
 					memset(recv_buffer, 0, sizeof(recv_buffer));
 					if (handle_len>=57) memmove(recv_buffer+7, client_handle+(i*57), 57);
@@ -214,8 +208,9 @@ int16_t bridge_to_onlykey(uint8_t * _appid, uint8_t * keyh, int handle_len, uint
 					recv_buffer[4] = cmd;
 					recv_buffer[5] = opt1; //slot
 					recv_buffer[6] = 0xFF;
-					if (opt2 && handle_len<=57) recv_buffer[6] = handle_len;
+					if (opt2 && handle_len<=57) recv_buffer[6] = handle_len; // last packet
 					if (cmd == OKDECRYPT) {
+						packet_buffer_details[3] = opt3;
 						NEO_Color = 128; //Turquoise
 						large_buffer_offset = 0;
 						outputmode=WEBAUTHN;
@@ -225,6 +220,7 @@ int16_t bridge_to_onlykey(uint8_t * _appid, uint8_t * keyh, int handle_len, uint
 						#endif
 						DECRYPT(recv_buffer);
 					} else if (cmd == OKSIGN) {
+						packet_buffer_details[3] = opt3;
 						NEO_Color = 213; //Purple
 						large_buffer_offset = 0;
 						outputmode=WEBAUTHN;
@@ -268,7 +264,12 @@ int16_t send_stored_response(uint8_t * output) {
 		} else if (large_resp_buffer_offset) {
 			extension_writeback_init(output, large_resp_buffer_offset);
 			extension_writeback(large_resp_buffer, large_resp_buffer_offset);
-			memset(large_resp_buffer, 0, LARGE_RESP_BUFFER_SIZE);
+			// Windows 10 1903 bug, it sends every fido2 request/response twice
+			// Everything happens twice, and the computer only pays attention to the 2nd request/response.
+			// This means we can't wipe the response after it's retrieved, have to wipe
+			// based on a timer
+			//memset(large_resp_buffer, 0, LARGE_RESP_BUFFER_SIZE);
+			wipedata(); // Wipe timer started
 		} else if (CRYPTO_AUTH || packet_buffer_offset) {
 			#ifdef DEBUG
 			Serial.println("Ping success");
